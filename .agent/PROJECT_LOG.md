@@ -708,3 +708,25 @@ Format: Atomic Logging `[Timestamp] - [Fase] - [Apa | Kenapa | Dampak]`
 - **Dampaknya**: Seluruh agen AI dan DevOps memiliki pedoman isolasi mutlak dan prosedur standar operasional (SOP) deployment yang aman dari risiko downtime pada sistem produksi lain di VPS `31.97.187.71`.
 - **Status**: Completed ✅.
 - **Blockers**: Tidak ada.
+
+### [2026-10-06 17:28] - PROD-DEPLOY: Eksekusi Live Deployment SIMUKTI BMD ke VPS 31.97.187.71
+- **Apa**:
+  1. Clone repositori produksi `https://github.com/asepsetiawan9/bmd-kec.git` ke direktori terisolasi `/var/www/apps/simukti`.
+  2. Transfer pre-compiled frontend assets `public/build` (manifest & bundle JavaScript/CSS Vite) via SCP dari workstation Windows untuk menjaga CPU & RAM server tetap aman.
+  3. Konfigurasi file lingkungan produksi `.env` (SQLite WAL mode, logging warning, dynamic key, session database).
+  4. Eksekusi `composer install --no-dev --optimize-autoloader --ignore-platform-req=php` di bawah PHP 8.5.4 FPM.
+  5. Inisialisasi database SQLite terisolasi di `/var/www/apps/simukti/database/database.sqlite`, eksekusi 19 migrasi database dan database seeder lengkap (Aset, Ruangan, Pegawai, Kode Barang, User, Pengaturan, Role/Permission).
+  6. Pembuatan symbolic link storage publik `php8.5 artisan storage:link`.
+  7. Pengaturan hak akses kepemilikan Linux: `chown -R www-data:www-data /var/www/apps/simukti`, `chmod -R 775 storage bootstrap/cache database`, `chmod 664 database/database.sqlite`.
+  8. Pembuatan dan pengaktifan virtual host Nginx `/etc/nginx/sites-available/simukti.conf` -> `/etc/nginx/sites-enabled/simukti.conf`, uji sintaks `nginx -t` (100% OK), dan reload aman `systemctl reload nginx`.
+  9. Penerbitan sertifikat SSL resmi Let's Encrypt dengan isolasi cert name: `certbot --nginx -d simukti.wiradashboard-ep.online --cert-name simukti.wiradashboard-ep.online`.
+  10. Eksekusi optimasi cache Laravel: `config:cache`, `route:cache`, `view:cache`.
+  11. Verifikasi menyeluruh:
+      - `https://simukti.wiradashboard-ep.online` ➔ HTTP 302 / Login Inertia React aktif dengan SSL valid.
+      - `https://wiradashboard-ep.online` ➔ HTTP 200 OK (Sistem lain tetap 100% stabil).
+      - `https://indra-arica.digital` ➔ HTTP 200 OK (Sistem lain tetap 100% stabil).
+      - `https://simpelkan.wiradashboard-ep.online` ➔ HTTP 302 Found (Sistem lain tetap 100% stabil).
+- **Kenapa**: Menjalankan instruksi Mr Zeps untuk melakukan deployment penuh sistem SIMUKTI BMD ke server VPS `31.97.187.71`.
+- **Dampaknya**: Sistem SIMUKTI Manajemen BMD Pemerintah Kecamatan Mekarmukti kini **LIVE & PUBLICLY ACCESSIBLE** di `https://simukti.wiradashboard-ep.online` dengan status zero-collision dan integritas penuh terhadap seluruh sistem produksi lain di VPS.
+- **Status**: PRODUCTION LIVE ✅.
+- **Blockers**: Tidak ada.
