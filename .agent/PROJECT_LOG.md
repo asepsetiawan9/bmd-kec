@@ -691,3 +691,20 @@ Format: Atomic Logging `[Timestamp] - [Fase] - [Apa | Kenapa | Dampak]`
 - **Dampaknya**: Seluruh source code produksi, skema database, seeder, komponen antarmuka, engine laporan PDF/Excel, serta test suite (57 test, 255 assertions) kini tersimpan aman di repositori `https://github.com/asepsetiawan9/bmd-kec` dengan branch utama `main` yang sinkron dan bersih (*working tree clean*).
 - **Status**: Completed ✅.
 - **Blockers**: Tidak ada.
+
+### [2026-10-06 17:22] - DEPLOY-DOCS: Audit Live VPS & Penyusunan Protokol Isolasi SIMUKTI (31.97.187.71)
+- **Apa**:
+  1. Melakukan inspeksi live melalui koneksi SSH ke VPS `31.97.187.71` (hostname: `srv1995969`, Ubuntu 24.04 LTS, 8GB RAM, 96GB SSD).
+  2. Memetakan seluruh inventaris sistem aktif:
+     - `wiradashboard-ep` (`wiradashboard-ep.online`, port `8001`, MongoDB container `aea2c448f077` port `27017`).
+     - `indra-arica` (`indra-arica.digital`, port `8002` Laravel API & `3002` Next.js SSR).
+     - `simpelkan` (`simpelkan.wiradashboard-ep.online`, PHP socket `php8.5-fpm.sock`).
+     - `monarx-agent` (Security malware shield di port `65529` dan `1721`).
+  3. Memverifikasi DNS A Record: Domain `simukti.wiradashboard-ep.online` sudah aktif dan mengarah tepat ke `31.97.187.71`.
+  4. Menyusun dokumen panduan wajib baca: `PANDUAN_ISOLASI_VPS_SIMUKTI_31.97.187.71.md` yang memuat peta sistem, batasan ketat larangan sentuh/bind (zero collision), standar direktori `/var/www/apps/simukti`, socket `php8.5-fpm.sock`, vhost Nginx, Let's Encrypt Certbot, serta SOP langkah demi langkah deployment.
+  5. Memperbarui `GEMINI.md` sebagai guardrail global AI agar wajib membaca dokumen panduan sebelum menjalankan perintah deployment.
+  6. Memperbarui script deployment pendukung di `deployment/` (`vps-nginx.conf`, `nginx.conf`, `deploy.sh`, `backup.sh`).
+- **Kenapa**: Menjalankan instruksi Mr Zeps untuk mengaudit VPS dan membuat panduan deploy resmi yang wajib dibaca oleh AI sebelum melakukan deploy ke `simukti.wiradashboard-ep.online` tanpa mengganggu sistem yang sudah berjalan.
+- **Dampaknya**: Seluruh agen AI dan DevOps memiliki pedoman isolasi mutlak dan prosedur standar operasional (SOP) deployment yang aman dari risiko downtime pada sistem produksi lain di VPS `31.97.187.71`.
+- **Status**: Completed ✅.
+- **Blockers**: Tidak ada.
