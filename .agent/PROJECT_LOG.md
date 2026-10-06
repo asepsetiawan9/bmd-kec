@@ -449,6 +449,27 @@ Format: Atomic Logging `[Timestamp] - [Fase] - [Apa | Kenapa | Dampak]`
 - **Status**: Audit & Guardrails Integration COMPLETED ✅. Siap untuk eksekusi deployment kapan saja diperintahkan.
 - **Blockers**: Tidak ada.
 
+### [2026-10-06 11:35] - 🚀 DEPLOYMENT LIVE SIMPEL KAN KE VPS BARU (31.97.187.71)
+- **Apa**:
+  1. Kompilasi aset frontend Vite produksi (`npm run build`, Vite v7.3.6) secara lokal di komputer Mr Zeps untuk mencegah memory spike / OOM di server.
+  2. Kloning repositori GitHub `asepsetiawan9/SIKEMAS` secara terisolasi ke `/var/www/apps/simpelkan` di VPS target `31.97.187.71`.
+  3. Transfer aman paket aset produksi `public/build` via `pscp.exe` ke server tanpa compile ulang di server.
+  4. Instalasi ekstensi `php8.5-gd` di VPS untuk mendukung pemrosesan QR Code & Excel spreadsheet.
+  5. Instalasi dependensi Composer production (`composer install --no-dev --prefer-dist --optimize-autoloader --ignore-platform-req=php`).
+  6. Inisialisasi database SQLite terisolasi `/var/www/apps/simpelkan/database/database.sqlite`, pembuatan App Key baru, eksekusi 20 migrasi database lengkap, dan seeding seluruh role, user, serta data RAP V2 (`DatabaseSeeder` & `BelanjaV2Seeder`).
+  7. Pembuatan symlink direktori publik (`php artisan storage:link`) serta penguncian izin direktori `www-data:www-data` (chmod 775/664).
+  8. Pembuatan dan aktivasi virtual host Nginx mandiri di `/etc/nginx/sites-available/simpelkan.conf` yang mengarah ke Unix Domain Socket `unix:/run/php/php8.5-fpm.sock` (Zero TCP port conflict).
+  9. Validasi sintaks `nginx -t` sukses 100%, reload Nginx graceful tanpa restart.
+  10. Penerbitan dan instalasi sertifikat SSL Let's Encrypt resmi untuk domain `simpelkan.wiradashboard-ep.online` via Certbot (Valid s/d 4 Januari 2027).
+  11. Verifikasi pasca-deploy:
+      - `https://simpelkan.wiradashboard-ep.online/login` terkonfirmasi `HTTP/1.1 200 OK` dengan asset bundle CSS & JS termuat sempurna.
+      - Sistem eksisting di VPS (`wiradashboard-ep.online`, `api.wiradashboard-ep.online`, `indra-arica.digital`, `api.indra-arica.digital`, serta container MongoDB) terkonfirmasi **100% AKTIF TANPA DOWNTIME**.
+- **Kenapa**: Menjalankan instruksi Mr Zeps untuk mem-push sistem SIMPEL KAN ke VPS baru (`31.97.187.71`) dengan domain `simpelkan.wiradashboard-ep.online` dan memastikan VPS lama tidak disentuh.
+- **Dampaknya**: Sistem SIMPEL KAN kini aktif melayani pengguna secara live di [https://simpelkan.wiradashboard-ep.online](https://simpelkan.wiradashboard-ep.online) dengan koneksi HTTPS terenkripsi penuh, performa FastCGI tinggi, arsitektur database terisolasi, serta integritas seluruh sistem lain di server terjaga 100%.
+- **Status**: Deployment ke VPS Baru COMPLETED ✅. Zero Downtime. Zero Conflict.
+- **Blockers**: Tidak ada.
+
+
 
 
 
