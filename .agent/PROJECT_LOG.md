@@ -680,3 +680,14 @@ Format: Atomic Logging `[Timestamp] - [Fase] - [Apa | Kenapa | Dampak]`
 - **Dampaknya**: Codebase menjadi jauh lebih bersih, ukuran repository terpangkas secara signifikan, risiko salah impor/panggilan view legacy tereliminasi 100%, serta tidak ada file sampah yang mengganggu proses rilis produksi.
 - **Status**: Completed ✅.
 - **Blockers**: Tidak ada.
+
+### [2026-10-06 17:15] - GIT: Publikasi Sistem SIMUKTI ke Repository Baru bmd-kec
+- **Apa**:
+  1. Commit final Wave 3 & Wave 4 serta pembersihan workspace (`abce482`).
+  2. Penggabungan (*fast-forward merge*) branch `refactor/overhaul-bmd-v3` ke branch utama `main`.
+  3. Konfigurasi ulang remote git: remote `origin` lama dialihkan menjadi `sikemas-legacy`, dan `origin` baru disetel mengarah ke `https://github.com/asepsetiawan9/bmd-kec.git`.
+  4. Eksekusi `git push -u origin main` dan `git push origin refactor/overhaul-bmd-v3` ke repositori GitHub target.
+- **Kenapa**: Menjalankan instruksi Mr Zeps untuk mempublikasikan seluruh sistem SIMUKTI BMD ke repositori GitHub baru `asepsetiawan9/bmd-kec`.
+- **Dampaknya**: Seluruh source code produksi, skema database, seeder, komponen antarmuka, engine laporan PDF/Excel, serta test suite (57 test, 255 assertions) kini tersimpan aman di repositori `https://github.com/asepsetiawan9/bmd-kec` dengan branch utama `main` yang sinkron dan bersih (*working tree clean*).
+- **Status**: Completed ✅.
+- **Blockers**: Tidak ada.
