@@ -32,6 +32,14 @@ class Pengaturan extends Model
     }
 
     /**
+     * Get a setting value by key with optional default (alias).
+     */
+    public static function get(string $key, ?string $default = null): ?string
+    {
+        return static::getValue($key, $default);
+    }
+
+    /**
      * Set or update a setting value.
      */
     public static function setValue(string $key, string $value, ?string $keterangan = null): self

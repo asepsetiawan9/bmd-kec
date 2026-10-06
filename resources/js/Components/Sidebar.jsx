@@ -13,6 +13,11 @@ import {
     DoorClosed,
     Users,
     BookOpen,
+    ArrowLeftRight,
+    Wrench,
+    ClipboardCheck,
+    Trash2,
+    History,
 } from 'lucide-react';
 
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
@@ -20,7 +25,9 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
     const { auth, pengaturan } = usePage().props;
     const userRole = auth?.user?.role;
     const permissions = auth?.user?.permissions || auth?.permissions || [];
-    const tahunAktif = pengaturan?.tahun_aktif || new Date().getFullYear();
+    const tahunAktif = typeof pengaturan?.tahun_aktif === 'string' || typeof pengaturan?.tahun_aktif === 'number'
+        ? String(pengaturan.tahun_aktif)
+        : String(new Date().getFullYear());
 
     const canManageMaster = permissions.includes('master.manage') || ['pengurus_barang', 'super_admin'].includes(userRole);
     const canCreateAset = permissions.includes('aset.create') || ['pengurus_barang', 'super_admin'].includes(userRole);
@@ -34,6 +41,7 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
     // Construct role-specific menu items for BMD (SIMUKTI)
     const getMenuItems = () => {
+        const badges = usePage().props.sidebar_badges || {};
         const asetSubItems = [
             {
                 name: 'Daftar Aset',
@@ -65,6 +73,63 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 subItems: asetSubItems,
             },
         ];
+
+        // Gelombang 3 Modules:
+        // Mutasi & BAST (Pengurus barang & super admin)
+        if (permissions.includes('mutasi.manage') || ['pengurus_barang', 'super_admin'].includes(userRole)) {
+            items.push({
+                name: 'Mutasi & BAST',
+                href: '/mutasi',
+                icon: ArrowLeftRight,
+                badge: null,
+            });
+        }
+
+        // Pemeliharaan (Pengurus barang & super admin)
+        if (permissions.includes('pemeliharaan.manage') || ['pengurus_barang', 'super_admin'].includes(userRole)) {
+            items.push({
+                name: 'Pemeliharaan',
+                href: '/pemeliharaan',
+                icon: Wrench,
+                badge: null,
+            });
+        }
+
+        // Inventarisasi (Opname)
+        if (permissions.includes('opname.view') || permissions.includes('opname.manage') || ['pengurus_barang', 'penatausaha', 'camat', 'super_admin'].includes(userRole)) {
+            items.push({
+                name: 'Inventarisasi (Opname)',
+                href: '/inventarisasi',
+                icon: ClipboardCheck,
+                badge: badges.opname_berjalan > 0 ? 'Aktif' : null,
+                badgeColor: 'bg-emerald-400 text-emerald-950',
+            });
+        }
+
+        // Usulan Penghapusan (Approval State Machine)
+        if (permissions.includes('penghapusan.create') || permissions.includes('penghapusan.verify') || permissions.includes('penghapusan.approve') || ['pengurus_barang', 'penatausaha', 'camat', 'super_admin'].includes(userRole)) {
+            let badgeVal = null;
+            let badgeColor = 'bg-amber-400 text-neutral-900';
+
+            if (userRole === 'penatausaha' && badges.penghapusan_pending_sekcam > 0) {
+                badgeVal = badges.penghapusan_pending_sekcam;
+                badgeColor = 'bg-amber-400 text-neutral-900';
+            } else if (userRole === 'camat' && badges.penghapusan_pending_camat > 0) {
+                badgeVal = badges.penghapusan_pending_camat;
+                badgeColor = 'bg-blue-400 text-neutral-900';
+            } else if (badges.penghapusan_dikembalikan > 0 && ['pengurus_barang', 'super_admin'].includes(userRole)) {
+                badgeVal = badges.penghapusan_dikembalikan;
+                badgeColor = 'bg-red-400 text-neutral-900';
+            }
+
+            items.push({
+                name: 'Usulan Penghapusan',
+                href: '/penghapusan',
+                icon: Trash2,
+                badge: badgeVal,
+                badgeColor,
+            });
+        }
 
         if (canManageMaster) {
             items.push({
@@ -98,14 +163,24 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 href: '/laporan',
                 icon: FileSpreadsheet,
                 badge: null,
-            },
-            {
-                name: 'Notifikasi',
-                href: '/notifikasi',
-                icon: Bell,
-                badge: null,
             }
         );
+
+        if (['super_admin', 'camat', 'penatausaha'].includes(userRole) || permissions.includes('audit.view')) {
+            items.push({
+                name: 'Log Aktivitas',
+                href: '/log-aktivitas',
+                icon: History,
+                badge: null,
+            });
+        }
+
+        items.push({
+            name: 'Notifikasi',
+            href: '/notifikasi',
+            icon: Bell,
+            badge: null,
+        });
 
         return items;
     };

@@ -4,328 +4,244 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\GolonganKib;
 use App\Enums\KondisiAset;
-use App\Enums\SeksiType;
-use App\Enums\SpjStatus;
-use App\Enums\StatusKegiatan;
+use App\Enums\StatusAset;
+use App\Enums\StatusUsulanPenghapusan;
 use App\Models\Aset;
-use App\Models\Kegiatan;
-use App\Models\Pengaturan;
-use App\Models\Spj;
+use App\Models\Inventarisasi;
+use App\Models\MutasiAset;
+use App\Models\Pemeliharaan;
+use App\Models\Ruangan;
+use App\Models\UsulanPenghapusan;
 use App\Models\User;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
     /**
-     * Get active fiscal year from system settings or fallback to current year.
-     */
-    public function getActiveYear(): int
-    {
-        $yearSetting = Pengaturan::getValue('tahun_anggaran_aktif', '2026');
-        return (int) $yearSetting;
-    }
-
-    /**
-     * Data bundle for Kasi Dashboard.
+     * Dapatkan data agregasi analitik dashboard sesuai peran pengguna.
      *
      * @return array<string, mixed>
      */
-    public function getKasiDashboard(User $kasi): array
+    public function getDashboardData(User $user): array
     {
-        $activeYear = $this->getActiveYear();
+        $role = $user->role instanceof \BackedEnum ? $user->role->value : (string) $user->role;
 
-        $kegiatanCollection = Kegiatan::where('kasi_id', $kasi->id)
-            ->where('tahun_anggaran', $activeYear)
-            ->with(['spj'])
-            ->get();
-
-        $kegiatanList = $kegiatanCollection->map(function (Kegiatan $kegiatan) {
-            $pagu = (float) $kegiatan->pagu;
-            $realisasi = (float) $kegiatan->spj
-                ->where('status', SpjStatus::DIVERIFIKASI)
-                ->sum('nominal');
-            $sisa = max(0.0, $pagu - $realisasi);
-            $persen = $pagu > 0 ? round(($realisasi / $pagu) * 100, 1) : 0.0;
-
-            return [
-                'id' => $kegiatan->id,
-                'nama' => $kegiatan->nama,
-                'kode_rekening' => $kegiatan->kode_rekening,
-                'pagu' => $pagu,
-                'realisasi' => $realisasi,
-                'sisa_pagu' => $sisa,
-                'persen' => $persen,
-                'status' => $kegiatan->status instanceof \BackedEnum ? $kegiatan->status->value : (string) $kegiatan->status,
-            ];
-        });
-
-        // Chart data: Pagu vs Realisasi per kegiatan
-        $kegiatanChart = $kegiatanList->map(function ($k) {
-            return [
-                'name' => Str::limit($k['nama'], 18),
-                'fullName' => $k['nama'],
-                'pagu' => $k['pagu'],
-                'realisasi' => $k['realisasi'],
-                'sisa' => $k['sisa_pagu'],
-            ];
-        })->values()->all();
-
-        // SPJ Query for Kasi
-        $allSpj = Spj::where('diajukan_oleh', $kasi->id)
-            ->where('periode_tahun', $activeYear)
-            ->get();
-
-        $diverifikasiCount = $allSpj->where('status', SpjStatus::DIVERIFIKASI)->count();
-        $ditolakCount = $allSpj->where('status', SpjStatus::DITOLAK)->count();
-        $menungguCount = $allSpj->filter(function (Spj $s) {
-            return in_array($s->status, [
-                SpjStatus::DRAFT,
-                SpjStatus::DIAJUKAN_KASI,
-                SpjStatus::DIKONSOLIDASI,
-                SpjStatus::DIAJUKAN_VERIFIKASI,
-            ], true);
-        })->count();
-
-        $spjStatusChart = [
-            ['name' => 'Diverifikasi', 'value' => $diverifikasiCount, 'color' => '#22c55e'],
-            ['name' => 'Sedang Diproses', 'value' => $menungguCount, 'color' => '#3b82f6'],
-            ['name' => 'Ditolak', 'value' => $ditolakCount, 'color' => '#ef4444'],
-        ];
-
-        $recentSpj = Spj::where('diajukan_oleh', $kasi->id)
-            ->with(['kegiatan'])
-            ->latest()
-            ->take(5)
-            ->get();
-
-        $totalPagu = (float) $kegiatanList->sum('pagu');
-        $totalRealisasi = (float) $kegiatanList->sum('realisasi');
-
-        return [
-            'kegiatanList' => $kegiatanList,
-            'kegiatanChart' => $kegiatanChart,
-            'spjStatusChart' => $spjStatusChart,
-            'recentSpj' => $recentSpj,
-            'stats' => [
-                'total_kegiatan' => $kegiatanList->count(),
-                'total_pagu' => $totalPagu,
-                'total_realisasi' => $totalRealisasi,
-                'sisa_pagu' => max(0.0, $totalPagu - $totalRealisasi),
-                'persen_realisasi' => $totalPagu > 0 ? round(($totalRealisasi / $totalPagu) * 100, 1) : 0.0,
-                'total_spj_diajukan' => $allSpj->count(),
-                'spj_ditolak' => $ditolakCount,
-                'spj_diverifikasi' => $diverifikasiCount,
-                'spj_menunggu' => $menungguCount,
-            ],
-        ];
+        return match ($role) {
+            'camat' => $this->getCamatDashboard(),
+            'penatausaha' => $this->getPenatausahaDashboard(),
+            'pemegang' => $this->getPemegangDashboard($user),
+            default => $this->getPengurusBarangDashboard(),
+        };
     }
 
     /**
-     * Data bundle for Staf Keuangan & Sekmat Dashboard.
-     *
-     * @return array<string, mixed>
-     */
-    public function getStafSekmatDashboard(string $role = 'staf_keuangan'): array
-    {
-        $activeYear = $this->getActiveYear();
-
-        $kegiatanCollection = Kegiatan::where('tahun_anggaran', $activeYear)
-            ->with(['kasi', 'spj'])
-            ->get();
-
-        $totalPagu = (float) $kegiatanCollection->sum('pagu');
-        $totalRealisasi = (float) Spj::where('status', SpjStatus::DIVERIFIKASI)
-            ->where('periode_tahun', $activeYear)
-            ->sum('nominal');
-
-        $persenRealisasi = $totalPagu > 0 ? round(($totalRealisasi / $totalPagu) * 100, 1) : 0.0;
-
-        $kegiatanSummary = $kegiatanCollection->map(function (Kegiatan $k) {
-            $pagu = (float) $k->pagu;
-            $realisasi = (float) $k->spj
-                ->where('status', SpjStatus::DIVERIFIKASI)
-                ->sum('nominal');
-            $sisa = max(0.0, $pagu - $realisasi);
-            $persen = $pagu > 0 ? round(($realisasi / $pagu) * 100, 1) : 0.0;
-
-            return [
-                'id' => $k->id,
-                'nama' => $k->nama,
-                'kode_rekening' => $k->kode_rekening,
-                'kasi_nama' => $k->kasi?->name ?? 'Belum ditentukan',
-                'pagu' => $pagu,
-                'realisasi' => $realisasi,
-                'sisa_pagu' => $sisa,
-                'persen' => $persen,
-                'status' => $k->status instanceof \BackedEnum ? $k->status->value : (string) $k->status,
-                'is_over_80' => $persen >= 80.0,
-            ];
-        });
-
-        // Warnings for realisasi > 80% (BR-KEU-03)
-        $warningsPagu = $kegiatanSummary->filter(fn ($item) => $item['is_over_80'])->values()->all();
-
-        // Chart: Realisasi Anggaran per Kegiatan
-        $realisasiKegiatanChart = $kegiatanSummary->map(function ($k) {
-            return [
-                'name' => Str::limit($k['nama'], 16),
-                'fullName' => $k['nama'],
-                'pagu' => $k['pagu'],
-                'realisasi' => $k['realisasi'],
-                'sisa' => $k['sisa_pagu'],
-                'persen' => $k['persen'],
-            ];
-        })->values()->all();
-
-        // SPJ distribution chart
-        $spjQuery = Spj::where('periode_tahun', $activeYear)->get();
-        $spjStatusChart = [
-            ['name' => 'Diajukan Kasi', 'value' => $spjQuery->where('status', SpjStatus::DIAJUKAN_KASI)->count(), 'color' => '#3b82f6'],
-            ['name' => 'Dikonsolidasi', 'value' => $spjQuery->where('status', SpjStatus::DIKONSOLIDASI)->count(), 'color' => '#6366f1'],
-            ['name' => 'Antrean Verifikasi', 'value' => $spjQuery->where('status', SpjStatus::DIAJUKAN_VERIFIKASI)->count(), 'color' => '#f59e0b'],
-            ['name' => 'Diverifikasi', 'value' => $spjQuery->where('status', SpjStatus::DIVERIFIKASI)->count(), 'color' => '#22c55e'],
-            ['name' => 'Ditolak', 'value' => $spjQuery->where('status', SpjStatus::DITOLAK)->count(), 'color' => '#ef4444'],
-        ];
-
-        // Aset condition chart
-        $asetCounts = [
-            'baik' => Aset::where('kondisi', KondisiAset::BAIK)->count(),
-            'rusak_ringan' => Aset::where('kondisi', KondisiAset::RUSAK_RINGAN)->count(),
-            'rusak_berat' => Aset::where('kondisi', KondisiAset::RUSAK_BERAT)->count(),
-        ];
-
-        $asetKondisiChart = [
-            ['name' => 'Baik', 'value' => $asetCounts['baik'], 'color' => '#22c55e'],
-            ['name' => 'Rusak Ringan', 'value' => $asetCounts['rusak_ringan'], 'color' => '#f59e0b'],
-            ['name' => 'Rusak Berat', 'value' => $asetCounts['rusak_berat'], 'color' => '#ef4444'],
-        ];
-
-        $recentSpj = Spj::with(['kegiatan', 'diajukanOleh'])
-            ->latest()
-            ->take(8)
-            ->get();
-
-        return [
-            'role' => $role,
-            'stats' => [
-                'total_pagu' => $totalPagu,
-                'total_realisasi' => $totalRealisasi,
-                'sisa_pagu' => max(0.0, $totalPagu - $totalRealisasi),
-                'persen_realisasi' => $persenRealisasi,
-                'pending_konsolidasi' => $spjQuery->where('status', SpjStatus::DIAJUKAN_KASI)->count(),
-                'pending_verifikasi' => $spjQuery->where('status', SpjStatus::DIAJUKAN_VERIFIKASI)->count(),
-                'diverifikasi' => $spjQuery->where('status', SpjStatus::DIVERIFIKASI)->count(),
-                'ditolak' => $spjQuery->where('status', SpjStatus::DITOLAK)->count(),
-                'total_kegiatan' => $kegiatanCollection->count(),
-                'total_aset' => Aset::count(),
-                'total_nilai_aset' => (float) Aset::sum('nilai'),
-            ],
-            'kegiatanList' => $kegiatanSummary,
-            'warningsPagu' => $warningsPagu,
-            'realisasiKegiatanChart' => $realisasiKegiatanChart,
-            'spjStatusChart' => $spjStatusChart,
-            'asetKondisiChart' => $asetKondisiChart,
-            'recentSpj' => $recentSpj,
-        ];
-    }
-
-    /**
-     * Data bundle for Camat Executive Dashboard.
+     * Dashboard Varian 1: Camat (Pengguna Barang / Top Executive).
      *
      * @return array<string, mixed>
      */
     public function getCamatDashboard(): array
     {
-        $activeYear = $this->getActiveYear();
+        $totalAset = Aset::count();
+        $totalNilai = (float) (Aset::sum('nilai_perolehan') ?? 0);
 
-        $kegiatanCollection = Kegiatan::where('tahun_anggaran', $activeYear)
-            ->with(['kasi', 'spj'])
-            ->get();
-
-        $totalPagu = (float) $kegiatanCollection->sum('pagu');
-        $totalRealisasi = (float) Spj::where('status', SpjStatus::DIVERIFIKASI)
-            ->where('periode_tahun', $activeYear)
-            ->sum('nominal');
-
-        $persenRealisasi = $totalPagu > 0 ? round(($totalRealisasi / $totalPagu) * 100, 1) : 0.0;
-
-        $kegiatanSummary = $kegiatanCollection->map(function (Kegiatan $k) {
-            $pagu = (float) $k->pagu;
-            $realisasi = (float) $k->spj
-                ->where('status', SpjStatus::DIVERIFIKASI)
-                ->sum('nominal');
-            $persen = $pagu > 0 ? round(($realisasi / $pagu) * 100, 1) : 0.0;
-
-            return [
-                'id' => $k->id,
-                'nama' => $k->nama,
-                'kasi_nama' => $k->kasi?->name ?? 'Belum ditentukan',
-                'seksi' => $k->kasi?->seksi instanceof \BackedEnum ? $k->kasi->seksi->value : (string) ($k->kasi?->seksi ?? '-'),
-                'pagu' => $pagu,
-                'realisasi' => $realisasi,
-                'persen' => $persen,
-            ];
-        });
-
-        // Chart: Pagu vs Realisasi per kegiatan
-        $kegiatanChart = $kegiatanSummary->map(function ($k) {
-            return [
-                'name' => Str::limit($k['nama'], 16),
-                'fullName' => $k['nama'],
-                'pagu' => $k['pagu'],
-                'realisasi' => $k['realisasi'],
-                'persen' => $k['persen'],
-            ];
-        })->values()->all();
-
-        // Rekap per Seksi
-        $seksiGrouped = [];
-        foreach (SeksiType::cases() as $seksi) {
-            $kegiatanSeksi = $kegiatanCollection->filter(function ($k) use ($seksi) {
-                return $k->kasi && ($k->kasi->seksi === $seksi || $k->kasi->seksi?->value === $seksi->value);
-            });
-
-            $paguSeksi = (float) $kegiatanSeksi->sum('pagu');
-            $realisasiSeksi = (float) $kegiatanSeksi->reduce(function ($carry, $k) {
-                return $carry + $k->spj->where('status', SpjStatus::DIVERIFIKASI)->sum('nominal');
-            }, 0.0);
-
-            $seksiGrouped[] = [
-                'seksi' => $seksi->value,
-                'label' => ucfirst($seksi->value),
-                'pagu' => $paguSeksi,
-                'realisasi' => $realisasiSeksi,
-                'persen' => $paguSeksi > 0 ? round(($realisasiSeksi / $paguSeksi) * 100, 1) : 0.0,
-            ];
-        }
-
-        $asetCounts = [
-            'total_aset' => Aset::count(),
-            'total_nilai' => (float) Aset::sum('nilai'),
+        $kondisiBreakdown = [
             'baik' => Aset::where('kondisi', KondisiAset::BAIK)->count(),
             'rusak_ringan' => Aset::where('kondisi', KondisiAset::RUSAK_RINGAN)->count(),
             'rusak_berat' => Aset::where('kondisi', KondisiAset::RUSAK_BERAT)->count(),
         ];
 
-        $asetKondisiChart = [
-            ['name' => 'Baik', 'value' => $asetCounts['baik'], 'color' => '#22c55e'],
-            ['name' => 'Rusak Ringan', 'value' => $asetCounts['rusak_ringan'], 'color' => '#f59e0b'],
-            ['name' => 'Rusak Berat', 'value' => $asetCounts['rusak_berat'], 'color' => '#ef4444'],
-        ];
+        // Komposisi Aset per Golongan A-F
+        $komposisiGolongan = [];
+        foreach (GolonganKib::cases() as $gol) {
+            $unit = Aset::where('golongan', $gol->value)->count();
+            $nilai = (float) (Aset::where('golongan', $gol->value)->sum('nilai_perolehan') ?? 0);
+            $komposisiGolongan[] = [
+                'golongan' => $gol->value,
+                'label' => "Golongan {$gol->value} ({$gol->label()})",
+                'unit' => $unit,
+                'nilai' => $nilai,
+            ];
+        }
+
+        // Pending approval Camat
+        $pendingApprovalCamat = UsulanPenghapusan::with('items')
+            ->where('status', StatusUsulanPenghapusan::DIVERIFIKASI)
+            ->latest('tanggal')
+            ->get();
+
+        // Top 5 ruangan dengan nilai aset tertinggi
+        $ruanganTop = Ruangan::withCount('aset')
+            ->withSum('aset', 'nilai_perolehan')
+            ->orderByDesc('aset_sum_nilai_perolehan')
+            ->take(5)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'nama' => $r->nama_ruangan,
+                'kode' => $r->kode_ruangan,
+                'total_unit' => $r->aset_count,
+                'total_nilai' => (float) ($r->aset_sum_nilai_perolehan ?? 0),
+            ]);
+
+        // Aset kritis rusak berat yang memerlukan perhatian
+        $asetRusakBerat = Aset::with(['ruangan', 'pegawai'])
+            ->where('kondisi', KondisiAset::RUSAK_BERAT)
+            ->latest('updated_at')
+            ->take(5)
+            ->get();
 
         return [
+            'variant' => 'camat',
             'stats' => [
-                'total_pagu' => $totalPagu,
-                'total_realisasi' => $totalRealisasi,
-                'sisa_pagu' => max(0.0, $totalPagu - $totalRealisasi),
-                'persen_realisasi' => $persenRealisasi,
-                'aset' => $asetCounts,
+                'total_aset' => $totalAset,
+                'total_nilai' => $totalNilai,
+                'kondisi' => $kondisiBreakdown,
+                'pending_approval_count' => $pendingApprovalCamat->count(),
             ],
-            'kegiatanSummary' => $kegiatanSummary,
-            'kegiatanChart' => $kegiatanChart,
-            'seksiSummary' => $seksiGrouped,
-            'asetKondisiChart' => $asetKondisiChart,
+            'komposisiGolongan' => $komposisiGolongan,
+            'pendingApproval' => $pendingApprovalCamat,
+            'ruanganTop' => $ruanganTop,
+            'asetRusakBerat' => $asetRusakBerat,
+        ];
+    }
+
+    /**
+     * Dashboard Varian 2: Penatausaha BMD (Sekcam / Pengelola).
+     *
+     * @return array<string, mixed>
+     */
+    public function getPenatausahaDashboard(): array
+    {
+        $totalAset = Aset::count();
+        $totalNilai = (float) (Aset::sum('nilai_perolehan') ?? 0);
+
+        // Pending verifikasi Sekcam
+        $pendingVerifikasiSekcam = UsulanPenghapusan::with('items')
+            ->where('status', StatusUsulanPenghapusan::DIAJUKAN)
+            ->latest('tanggal')
+            ->get();
+
+        // Mutasi bulan ini
+        $mutasiBulanIni = MutasiAset::whereMonth('tanggal', now()->month)
+            ->whereYear('tanggal', now()->year)
+            ->count();
+
+        // Sensus aktif
+        $opnameAktif = Inventarisasi::withCount(['items as total_items', 'items as dicek_count' => function ($q) {
+            $q->where('hasil', '!=', 'belum_dicek');
+        }])->where('status', 'berjalan')->first();
+
+        $kondisiBreakdown = [
+            'baik' => Aset::where('kondisi', KondisiAset::BAIK)->count(),
+            'rusak_ringan' => Aset::where('kondisi', KondisiAset::RUSAK_RINGAN)->count(),
+            'rusak_berat' => Aset::where('kondisi', KondisiAset::RUSAK_BERAT)->count(),
+        ];
+
+        // 5 Mutasi terkini
+        $recentMutasi = MutasiAset::with(['aset', 'keRuangan', 'kePegawai'])
+            ->latest('tanggal')
+            ->take(5)
+            ->get();
+
+        return [
+            'variant' => 'penatausaha',
+            'stats' => [
+                'total_aset' => $totalAset,
+                'total_nilai' => $totalNilai,
+                'pending_verifikasi_count' => $pendingVerifikasiSekcam->count(),
+                'mutasi_bulan_ini' => $mutasiBulanIni,
+                'kondisi' => $kondisiBreakdown,
+            ],
+            'pendingVerifikasi' => $pendingVerifikasiSekcam,
+            'opnameAktif' => $opnameAktif,
+            'recentMutasi' => $recentMutasi,
+        ];
+    }
+
+    /**
+     * Dashboard Varian 3: Pengurus Barang & Super Admin (Komando Operasional 360°).
+     *
+     * @return array<string, mixed>
+     */
+    public function getPengurusBarangDashboard(): array
+    {
+        $totalAset = Aset::count();
+        $totalNilai = (float) (Aset::sum('nilai_perolehan') ?? 0);
+
+        $kondisiBreakdown = [
+            'baik' => Aset::where('kondisi', KondisiAset::BAIK)->count(),
+            'rusak_ringan' => Aset::where('kondisi', KondisiAset::RUSAK_RINGAN)->count(),
+            'rusak_berat' => Aset::where('kondisi', KondisiAset::RUSAK_BERAT)->count(),
+        ];
+
+        $statusBreakdown = [
+            'aktif' => Aset::where('status', StatusAset::AKTIF)->count(),
+            'dipinjam' => Aset::where('status', StatusAset::DIPINJAM)->count(),
+            'dalam_perbaikan' => Aset::where('status', StatusAset::DALAM_PERBAIKAN)->count(),
+            'diusulkan_hapus' => Aset::where('status', StatusAset::DIUSULKAN_HAPUS)->count(),
+            'dihapus' => Aset::where('status', StatusAset::DIHAPUS)->count(),
+        ];
+
+        // Biaya pemeliharaan tahun berjalan
+        $biayaPemeliharaanTahunIni = (float) (Pemeliharaan::whereYear('tanggal', now()->year)->sum('biaya') ?? 0);
+
+        // Sensus / Opname berjalan
+        $opnameAktif = Inventarisasi::withCount(['items as total_items', 'items as dicek_count' => function ($q) {
+            $q->where('hasil', '!=', 'belum_dicek');
+        }])->where('status', 'berjalan')->first();
+
+        // 5 Aset terbaru
+        $recentAset = Aset::with(['ruangan', 'pegawai'])->latest('id')->take(5)->get();
+
+        // 5 Pemeliharaan terbaru
+        $recentPemeliharaan = Pemeliharaan::with('aset')->latest('tanggal')->take(5)->get();
+
+        return [
+            'variant' => 'pengurus_barang',
+            'stats' => [
+                'total_aset' => $totalAset,
+                'total_nilai' => $totalNilai,
+                'kondisi' => $kondisiBreakdown,
+                'status' => $statusBreakdown,
+                'biaya_pemeliharaan' => $biayaPemeliharaanTahunIni,
+            ],
+            'opnameAktif' => $opnameAktif,
+            'recentAset' => $recentAset,
+            'recentPemeliharaan' => $recentPemeliharaan,
+        ];
+    }
+
+    /**
+     * Dashboard Varian 4: Pemegang Aset (Pegawai / Staf).
+     *
+     * @return array<string, mixed>
+     */
+    public function getPemegangDashboard(User $user): array
+    {
+        $pegawaiId = $user->pegawai_id;
+
+        // Aset yang dipegang langsung
+        $asetDipegang = $pegawaiId
+            ? Aset::with('ruangan')->where('pegawai_id', $pegawaiId)->get()
+            : collect();
+
+        // Ruangan tempat pegawai ditugaskan
+        $ruangan = $pegawaiId ? Ruangan::where('penanggung_jawab_id', $pegawaiId)->first() : null;
+        $asetRuangan = $ruangan ? Aset::where('ruangan_id', $ruangan->id)->get() : collect();
+
+        return [
+            'variant' => 'pemegang',
+            'stats' => [
+                'total_aset_dipegang' => $asetDipegang->count(),
+                'total_nilai_dipegang' => (float) $asetDipegang->sum('nilai_perolehan'),
+                'kondisi_baik' => $asetDipegang->where('kondisi', KondisiAset::BAIK)->count(),
+                'kondisi_rusak' => $asetDipegang->where('kondisi', '!=', KondisiAset::BAIK)->count(),
+            ],
+            'asetDipegang' => $asetDipegang,
+            'ruangan' => $ruangan,
+            'asetRuangan' => $asetRuangan,
         ];
     }
 }

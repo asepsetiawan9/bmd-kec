@@ -6,14 +6,18 @@ use App\Http\Controllers\AsetController;
 use App\Http\Controllers\AsetDokumenController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FileController;
+use App\Http\Controllers\InventarisasiController;
 use App\Http\Controllers\KodeBarangController;
 use App\Http\Controllers\LabelCetakController;
 use App\Http\Controllers\LaporanController;
+use App\Http\Controllers\MutasiAsetController;
 use App\Http\Controllers\NotifikasiController;
 use App\Http\Controllers\PegawaiController;
+use App\Http\Controllers\PemeliharaanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicScanController;
 use App\Http\Controllers\RuanganController;
+use App\Http\Controllers\UsulanPenghapusanController;
 use Illuminate\Support\Facades\Route;
 
 // Redirect root to dashboard or login
@@ -84,6 +88,46 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/kode-barang', [KodeBarangController::class, 'index'])->name('kode-barang.index');
     });
 
+    // === Mutasi Aset & BAST ===
+    Route::prefix('mutasi')->name('mutasi.')->group(function () {
+        Route::get('/', [MutasiAsetController::class, 'index'])->name('index');
+        Route::get('/create', [MutasiAsetController::class, 'create'])->name('create');
+        Route::post('/', [MutasiAsetController::class, 'store'])->name('store');
+        Route::get('/print-bast', [MutasiAsetController::class, 'printBast'])->name('print-bast');
+        Route::get('/detail-bast', [MutasiAsetController::class, 'show'])->name('show');
+    });
+
+    // === Pemeliharaan & Monitoring Biaya Servis ===
+    Route::prefix('pemeliharaan')->name('pemeliharaan.')->group(function () {
+        Route::get('/', [PemeliharaanController::class, 'index'])->name('index');
+        Route::post('/', [PemeliharaanController::class, 'store'])->name('store');
+    });
+
+    // === Inventarisasi (Stock Opname) ===
+    Route::prefix('inventarisasi')->name('inventarisasi.')->group(function () {
+        Route::get('/', [InventarisasiController::class, 'index'])->name('index');
+        Route::post('/', [InventarisasiController::class, 'store'])->name('store');
+        Route::get('/{inventarisasi}', [InventarisasiController::class, 'show'])->name('show');
+        Route::get('/{inventarisasi}/sensus-lapangan', [InventarisasiController::class, 'sensusLapangan'])->name('sensus-lapangan');
+        Route::post('/{inventarisasi}/check/{aset}', [InventarisasiController::class, 'checkItem'])->name('check-item');
+        Route::post('/{inventarisasi}/tutup', [InventarisasiController::class, 'tutup'])->name('tutup');
+    });
+    Route::get('/api/inventarisasi/{inventarisasi}/search-item', [InventarisasiController::class, 'searchItem'])->name('api.inventarisasi.search-item');
+
+    // === Usulan Penghapusan (Approval State Machine) ===
+    Route::prefix('penghapusan')->name('penghapusan.')->group(function () {
+        Route::get('/', [UsulanPenghapusanController::class, 'index'])->name('index');
+        Route::get('/create', [UsulanPenghapusanController::class, 'create'])->name('create');
+        Route::post('/', [UsulanPenghapusanController::class, 'store'])->name('store');
+        Route::get('/{usulan}', [UsulanPenghapusanController::class, 'show'])->name('show');
+        Route::post('/{usulan}/ajukan', [UsulanPenghapusanController::class, 'ajukan'])->name('ajukan');
+        Route::post('/{usulan}/verifikasi-sekcam', [UsulanPenghapusanController::class, 'verifikasiSekcam'])->name('verifikasi-sekcam');
+        Route::post('/{usulan}/kembalikan-sekcam', [UsulanPenghapusanController::class, 'kembalikanSekcam'])->name('kembalikan-sekcam');
+        Route::post('/{usulan}/setujui-camat', [UsulanPenghapusanController::class, 'setujuiCamat'])->name('setujui-camat');
+        Route::post('/{usulan}/kembalikan-camat', [UsulanPenghapusanController::class, 'kembalikanCamat'])->name('kembalikan-camat');
+        Route::post('/{usulan}/selesaikan-sk', [UsulanPenghapusanController::class, 'selesaikanSk'])->name('selesaikan-sk');
+    });
+
     // === Laporan ===
     Route::prefix('laporan')->name('laporan.')->group(function () {
         Route::get('/', [LaporanController::class, 'index'])->name('index');
@@ -98,6 +142,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{notifikasi}/read', [NotifikasiController::class, 'markAsRead'])->name('mark-read');
         Route::post('/read-all', [NotifikasiController::class, 'markAllAsRead'])->name('mark-all-read');
     });
+
+    // === Audit Trail / Log Aktivitas ===
+    Route::get('/log-aktivitas', [\App\Http\Controllers\LogAktivitasController::class, 'index'])
+        ->name('log-aktivitas.index');
 });
 
 require __DIR__.'/auth.php';

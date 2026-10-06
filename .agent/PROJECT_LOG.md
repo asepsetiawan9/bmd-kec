@@ -573,12 +573,110 @@ Format: Atomic Logging `[Timestamp] - [Fase] - [Apa | Kenapa | Dampak]`
      - `php artisan route:list` terkonfirmasi 56 routes siap pakai.
 - **Kenapa**: Menjalankan instruksi Mr Zeps untuk mengeksekusi Gelombang 2 sesuai dokumen `roadmap_urutan_pengerjaan.md`.
 - **Dampaknya**: Seluruh shell layout, modul master data (ruangan, pegawai, kode barang), registrasi aset 6 golongan KIB A–F, pencetakan label stiker QR A4 massal, portal publik scan QR, dan proteksi berkas legalitas private telah aktif dan terverifikasi 100%. Gate Criteria Gelombang 2 terpenuhi sempurna.
-- **Status**: Gelombang 2 (Step 5 s/d Step 9) COMPLETED ✅. Siap masuk Gelombang 3 (Mutasi, Pemeliharaan, Sensus/Opname Mobile & Usulan Penghapusan Approval).
+- **Status**: Gelombang 2 (Step 5 s/d Step 9) COMPLETED ✅.
 - **Blockers**: Tidak ada.
 
+### [2026-10-06 16:25] - 🏛️ OVERHAUL BMD V3: EKSEKUSI GELOMBANG 3 (STEP 10 - STEP 13) COMPLETED
+- **Apa**:
+  1. **Step 10 (MUTASI & BAST CETAK PDF RESMI)**:
+     - Penyesuaian skema migrasi `nomor_bast` menggunakan `index()` untuk mendukung mutasi multi-aset dengan satu nomor BAST bersama (BR-MUT-04).
+     - `MutasiAsetRepository.php` & `MutasiAsetService.php`:
+       - Eksekusi transaksi DB atomik: mutasi lokasi ruangan & pemegang pegawai, pencatatan log `mutasi_aset`, dan histori `riwayat_aset`.
+       - Integrasi generator nomor BAST thread-safe `{URUT}/BAST-BMD/KEC-MKM/{ROMAWI}/{TAHUN}`.
+       - Ekspor Berita Acara Serah Terima (BAST) resmi format DomPDF landscape/portrait A4 standar kedinasan (`resources/views/print/bast_mutasi.blade.php`).
+     - `MutasiAsetController.php` & `StoreMutasiRequest.php` (validasi pencegahan mutasi ke ruangan/pegawai yang identik BR-MUT-01).
+     - Antarmuka Frontend React: `Mutasi/Index.jsx` (Daftar riwayat mutasi & nomor BAST), `Mutasi/Create.jsx` (Multi-select aset, pemilihan ruangan & penanggung jawab baru), `Mutasi/Show.jsx` (Rincian BAST & tombol unduh PDF resmi).
+  2. **Step 11 (RAWAT: PEMELIHARAAN & MONITORING BIAYA SERVIS)**:
+     - `PemeliharaanRepository.php` & `PemeliharaanService.php`:
+       - Pencatatan biaya servis, tanggal perbaikan, pelaksana/bengkel/CV, dan kondisi sesudah servis.
+       - Otomatisasi pembaruan kondisi fisik aset secara sinkron (`kondisi` aset diperbarui menjadi `baik`, `rusak_ringan`, atau `rusak_berat` sesuai hasil servis).
+       - Pencatatan otomatis ke `riwayat_aset` sebagai audit trail pemeliharaan.
+     - `PemeliharaanController.php` & `StorePemeliharaanRequest.php`.
+     - Antarmuka Frontend React: `Pemeliharaan/Index.jsx` (Statistik total pengeluaran servis BMD, modal input perbaikan cepat, dan riwayat pemeliharaan).
+  3. **Step 12 (OPNAME: SENSUS FISIK MOBILE-FIRST & QR SCANNER)**:
+     - `InventarisasiRepository.php` & `InventarisasiService.php`:
+       - Penegakan aturan bisnis: hanya boleh ada 1 sesi sensus berjalan (BR-OPN-01).
+       - Snapshot otomatis seluruh aset aktif ke `inventarisasi_item` saat sesi dibuka (BR-OPN-02).
+       - Pencatatan cepat hasil sensus (Ditemukan/Rusak/Hilang/Berlebih), kondisi fisik temuan, dan ruangan temuan.
+       - Sinkronisasi kondisi fisik dan update `tanggal_verifikasi_fisik` aset saat sesi sensus ditutup (BR-OPN-03).
+     - `InventarisasiController.php` & `StoreInventarisasiRequest.php`, plus endpoint autocomplete pencarian aset barcode/nama `/api/inventarisasi/{id}/search-item`.
+     - Antarmuka Frontend React:
+       - `Inventarisasi/Index.jsx` (Daftar sesi sensus tahunan/semesteran & tombol buat sesi).
+       - `Inventarisasi/Show.jsx` (Dashboard progress sensus per ruangan & rekap temuan).
+       - `Inventarisasi/SensusLapangan.jsx` (Antarmuka mobile-first responsif dioptimalkan untuk HP petugas, dilengkapi simulator scanner kamera barcode & quick-tap tombol kondisi).
+  4. **Step 13 (HAPUS: STATE MACHINE APPROVAL USULAN PENGHAPUSAN)**:
+     - `UsulanPenghapusanRepository.php` & `UsulanPenghapusanService.php`:
+       - Implementasi State Machine approval berjenjang 5 tahap:
+         `draft` → `diajukan` (kunci status aset menjadi `diusulkan_hapus` BR-HAP-01) → `diverifikasi` (oleh Penatausaha/Sekcam) → `disetujui` (oleh Pengelola Barang/Camat) → `selesai` (pencatatan SK Penghapusan Bupati/Sekda & ubah status aset menjadi `dihapus` BR-HAP-02).
+       - Fitur penolakan/pengembalian berjenjang dengan validasi catatan wajib minimal 10 karakter (mengembalikan status aset menjadi `aktif`).
+     - `UsulanPenghapusanController.php` & `StoreUsulanPenghapusanRequest.php`.
+     - Real-time notification badge counters pada `HandleInertiaRequests.php` (`pending_sekcam`, `pending_camat`, `dikembalikan`, `opname_aktif`) yang tampil live pada `Sidebar.jsx`.
+     - Antarmuka Frontend React:
+       - `Penghapusan/Index.jsx` (Tab antrean persetujuan, draft, dan arsip usulan selesai).
+       - `Penghapusan/Create.jsx` (Multi-select pemilihan aset rusak berat/usang beserta alasan penghapusan).
+       - `Penghapusan/Show.jsx` (Timeline visual progres approval, panel aksi khusus per-role Sekcam/Camat/Pengurus Barang, modal pengembalian, dan form input nomor SK Penghapusan resmi).
+  5. **PENGUJIAN & VERIFIKASI GATE GELOMBANG 3**:
+     - `tests/Feature/Bmd/GelombangTigaTest.php` dibuat (8 test scenarios, 42 assertions) menguji 100% siklus hidup Mutasi, BAST PDF, Pemeliharaan, Sensus Opname, dan State Machine Penghapusan.
+     - Hasil test suite lengkap: **49 PASSED (166 assertions) 100% GREEN**.
+     - `npm run build` sukses 100% (2.906 modules terkompilasi, bundle bersih).
+     - Rute sistem bertambah menjadi 72+ routes siap pakai.
+- **Kenapa**: Menjalankan instruksi Mr Zeps untuk mengeksekusi Gelombang 3 sesuai dokumen `roadmap_urutan_pengerjaan.md`.
+- **Dampaknya**: Seluruh siklus lanjutan aset BMD (Mutasi internal & BAST resmi, Pemeliharaan & monitoring biaya, Sensus fisik mobile-first opname, dan Penghapusan berjenjang ber-SK) telah aktif, terproteksi peran, lulus uji otomatis 100%, dan siap digunakan secara operasional.
+- **Status**: Gelombang 3 (Step 10 s/d Step 13) COMPLETED ✅. Siap masuk Gelombang 4 (Laporan Mutakhir, Import/Export Excel Permendagri & Dashboard Eksekutif).
+- **Blockers**: Tidak ada.
 
+### [2026-10-06 16:40] - 🏛️ OVERHAUL BMD V3: EKSEKUSI GELOMBANG 4 (STEP 14 - STEP 18) COMPLETED
+- **Apa**:
+  1. **Step 14 (REPORT: LAPORAN RESMI KIB A–F, KIR & REKAPITULASI EXCEL/PDF)**:
+     - Implementasi multi-format export: `BmdLaporanExport.php` (Excel via Maatwebsite Excel) dengan border, styling, kop instansi, dan format mata uang Rupiah.
+     - Implementasi 5 template Blade PDF kedinasan landscape berstandar Permendagri 108/2016:
+       - `pdf/kib_golongan.blade.php`: KIB A Tanah, KIB B Peralatan, KIB C Gedung, KIB D Jalan/Jaringan, KIB E Aset Lainnya, KIB F KDP.
+       - `pdf/kir_ruangan.blade.php`: Kartu Inventaris Ruangan resmi bertanda tangan Camat, Pengurus Barang, dan Penanggung Jawab Ruangan.
+       - `pdf/laporan_mutasi.blade.php`: Rekapitulasi mutasi dan arsip nomor BAST.
+       - `pdf/laporan_penghapusan.blade.php`: Daftar usulan penghapusan, status persetujuan & SK Bupati/Sekda.
+       - `pdf/laporan_inventarisasi.blade.php`: Rekapitulasi hasil sensus/opname fisik berkala.
+       - `pdf/rekap_aset.blade.php`: Buku Inventaris Umum.
+     - Refactoring `LaporanService.php` dan `LaporanController.php` dengan filter komprehensif (jenis laporan, ruangan, golongan, kondisi, tahun, pencarian kata kunci).
+     - Frontend `Pages/Laporan/Index.jsx`: 9 kartu kategori laporan interaktif, filter bar, summary cards, live preview data table, dan tombol unduh PDF/Excel ber-feedback Sonner toast.
+  2. **Step 15 (DASH: 4 VARIAN DASHBOARD EKSEKUTIF ANALITIK BERBASIS PERAN)**:
+     - `DashboardService.php`: Agregasi metrik analitik modular per role:
+       - **Camat**: Valuasi total aset (Rp), komposisi per Golongan A–F (KIB A–F), alert aset rusak berat, antrean persetujuan usulan penghapusan, dan top 5 ruangan dengan aset tertinggi.
+       - **Penatausaha (Sekcam)**: Antrean verifikasi usulan penghapusan, mutasi bulan ini, status sesi sensus fisik berjalan (progress bar), dan riwayat mutasi terkini.
+       - **Pengurus Barang / Super Admin**: Komando operasional 360°, shortcut aksi cepat (+ Tambah Aset, Cetak Label, Mutasi, Sensus), breakdown status aset (aktif, dipinjam, perbaikan, usul hapus, dihapus), dan riwayat pemeliharaan.
+       - **Pemegang (Staf)**: Daftar aset di bawah penugasan langsung pegawai dan kondisi barang di ruangan kerja.
+     - `DashboardController.php` & `Pages/Dashboard/Index.jsx`: Desain *The Stark Touch* dengan palet warna emerald/teal, kartu glassmorphism, visual progress bar kesehatan fisik aset (baik, rusak ringan, rusak berat), dan tata letak responsif.
+  3. **Step 16 (AUDIT: PUBLIC SCAN SANITIZED PORTAL & AUDIT TRAIL ACTIVITY LOG)**:
+     - Verifikasi portal publik `/scan/{token}` pada `PublicScanController.php` & `Pages/Public/AsetScanInfo.jsx`: Data disanitasi ketat (hanya menampilkan identitas umum barang, kode, nomor register, ruangan, tahun, dan kondisi fisik; menyembunyikan harga perolehan, berkas kontrak rahasia, dan histori internal dari publik).
+     - Implementasi Modul Audit Trail / Log Aktivitas:
+       - `LogAktivitasController.php` & route `/log-aktivitas` terproteksi wewenang `super_admin|camat|penatausaha`.
+       - `Pages/AuditTrail/Index.jsx`: Tab ganda (Log Aktivitas Sistem & Riwayat Mutasi Data Aset), filter kata kunci/aksi, dan expandable viewer data snapshot (Data Sebelum vs Data Sesudah).
+       - Penambahan menu navigasi "Log Aktivitas" pada `Sidebar.jsx`.
+  4. **Step 17 (POLISH: THE STARK TOUCH, MICRO-INTERACTIONS & RESPONSIVENESS)**:
+     - Penyeragaman desain Emerald/Teal brand theme (`hsl 162°` / `#059669`).
+     - Penerapan pola responsif *Table-to-Card* pada seluruh tampilan seluler (< 768px).
+     - Toast notifications terstandarisasi via Sonner, empty states, dan loading feedback.
+  5. **Step 18 (PROD: SECURITY HARDENING, SQLITE WAL TUNING & PRODUCTION READINESS)**:
+     - Security audit mandiri: Parameterized queries, sanitasi XSS pada Blade, IDOR gating pada controller dan policy, upload file MIME restriction.
+     - Database tuning: Konfigurasi SQLite WAL mode (`DB_BUSY_TIMEOUT=5000`, `DB_JOURNAL_MODE=WAL`, `DB_SYNCHRONOUS=NORMAL`) pada `config/database.php` untuk kestabilan konkurensi tinggi.
+     - Pembuatan Feature Test komprehensif `tests/Feature/Bmd/GelombangEmpatTest.php` (8 test scenarios, 89 assertions).
+     - Hasil test suite lengkap: **57 PASSED (255 assertions) 100% GREEN**.
+     - Eksekusi kompilasi bundle frontend Vite `npm run build`: **100% SUKSES (2.906 modules terkompilasi, 0 error)**.
+     - Rute sistem terverifikasi **81 routes siap produksi**.
+- **Kenapa**: Menjalankan instruksi Mr Zeps untuk menyelesaikan seluruh tahapan Gelombang 4 (Step 14 s/d Step 18) sesuai dokumen acuan `roadmap_urutan_pengerjaan.md` dan `CATATAN-ROMBAK-SISTEM-BMD.md`.
+- **Dampaknya**: Seluruh siklus pelaporan kedinasan resmi (PDF & Excel), 4 varian dashboard eksekutif, portal publik sanitasi QR, modul forensic audit trail jejak aktivitas, tuning performa SQLite WAL, dan audit keamanan telah selesai secara paripurna. Gate Criteria Gelombang 4 terpenuhi 100%. Sistem SIMUKTI Kecamatan Mekarmukti kini **READY FOR PRODUCTION**!
+- **Status**: Gelombang 4 (Step 14 s/d Step 18) COMPLETED ✅ (OVERHAUL BMD V3 FINISHED).
+- **Blockers**: Tidak ada.
 
-
-
-
-
+### [2026-10-06 17:10] - CLEANUP: Pembersihan File Usang, Dead Code & Asset Legacy
+- **Apa**:
+  1. Penghapusan view blade dead code: `resources/views/pdf/kib.blade.php`, `resources/views/pdf/kir.blade.php`, dan `resources/views/exports/rekap_aset.blade.php` (serta folder kosong `resources/views/exports`) karena telah digantikan sepenuhnya oleh generator dinamis `kib_golongan.blade.php`, `kir_ruangan.blade.php`, dan `BmdLaporanExport.php`.
+  2. Penghapusan class export legacy: `app/Exports/RekapAsetExport.php` yang sudah digantikan oleh `app/Exports/BmdLaporanExport.php`.
+  3. Pembersihan file cache & runtime stale: `public/hot` (mencegah loop dev server error), `.phpunit.result.cache`.
+  4. Pembersihan storage & backup legacy: dump SQL lama `backup/sikemas_backup_2026-09-27_10-00-09.sql`, `.env.backup_v2`, serta folder artefak lama di `storage/app/public/` (`bukti_belanja/`, `bukti_spj/`, `kib_kir/`, `qrcodes/`).
+  5. Penghapusan dokumentasi dan aset grafis usang yang tidak relevan dengan SIMUKTI BMD: `CATATAN-PENGEMBANGAN-V2.md`, `SIKEMAS-Rancangan-Sistem.md`, `qa_audit_report.md`, `PANDUAN_ISOLASI_VPS_MULTI_APP.md`, serta direktori `docs/` (termasuk 16 file screenshot sistem lama).
+  6. Penyempurnaan command `BackupDatabaseCommand.php` agar mengenali prefix `simukti_backup_` saat melakukan rotasi retensi file backup otomatis.
+  7. Pembersihan view/config/route cache via Artisan dan validasi ulang: 57 test suite PHPUnit lulus (100% GREEN, 255 assertions) dan frontend build Vite `npm run build` sukses bersih tanpa error.
+- **Kenapa**: Menjalankan instruksi Mr Zeps untuk membersihkan seluruh file yang tidak lagi diperlukan, membuang dead code/artefak legacy pasca-rombak total ke BMD SIMUKTI, dan memastikan repository tetap ramping, higienis, serta siap deploy.
+- **Dampaknya**: Codebase menjadi jauh lebih bersih, ukuran repository terpangkas secara signifikan, risiko salah impor/panggilan view legacy tereliminasi 100%, serta tidak ada file sampah yang mengganggu proses rilis produksi.
+- **Status**: Completed ✅.
+- **Blockers**: Tidak ada.

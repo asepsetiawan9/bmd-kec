@@ -180,4 +180,24 @@ class Aset extends Model
     {
         return $this->pemegang();
     }
+
+    public function pegawai(): BelongsTo
+    {
+        return $this->pemegang();
+    }
+
+    public function kodeBarangRef(): BelongsTo
+    {
+        return $this->refKodeBarang();
+    }
+
+    public function getNamaBarangAttribute(): string
+    {
+        return (string) ($this->nama ?? '');
+    }
+
+    public function getMerkTipeAttribute(): ?string
+    {
+        return $this->merk_type;
+    }
 }

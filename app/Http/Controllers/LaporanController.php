@@ -25,9 +25,14 @@ class LaporanController extends Controller
      */
     public function index(Request $request): Response
     {
-        abort_unless($request->user()->can('laporan.view'), 403, 'Akses tidak diizinkan untuk melihat laporan.');
+        abort_unless(
+            $request->user()->can('laporan.view') || in_array($request->user()->role?->value ?? (string) $request->user()->role, ['super_admin', 'pengurus_barang', 'penatausaha', 'camat']),
+            403,
+            'Akses tidak diizinkan untuk melihat laporan.'
+        );
 
         $filters = $request->only([
+            'jenis_laporan',
             'golongan',
             'kondisi',
             'ruangan_id',
@@ -55,36 +60,60 @@ class LaporanController extends Controller
                 'nama' => "[{$r->kode_ruangan}] {$r->nama_ruangan}",
             ]);
 
+        $jenisLaporanOptions = [
+            ['value' => 'rekap', 'label' => 'Buku Inventaris (Rekap Seluruh Aset)'],
+            ['value' => 'kir', 'label' => 'KIR (Kartu Inventaris Ruangan)'],
+            ['value' => 'kib_a', 'label' => 'KIB A (Tanah)'],
+            ['value' => 'kib_b', 'label' => 'KIB B (Peralatan & Mesin)'],
+            ['value' => 'kib_c', 'label' => 'KIB C (Gedung & Bangunan)'],
+            ['value' => 'kib_d', 'label' => 'KIB D (Jalan, Irigasi & Jaringan)'],
+            ['value' => 'kib_e', 'label' => 'KIB E (Aset Tetap Lainnya)'],
+            ['value' => 'kib_f', 'label' => 'KIB F (Konstruksi Dalam Pengerjaan)'],
+            ['value' => 'mutasi', 'label' => 'Laporan Mutasi Barang'],
+            ['value' => 'penghapusan', 'label' => 'Daftar Usulan Penghapusan'],
+            ['value' => 'inventarisasi', 'label' => 'Hasil Sensus / Inventarisasi'],
+        ];
+
         return Inertia::render('Laporan/Index', [
             'reportData' => $reportData,
             'golonganOptions' => $golonganOptions,
             'kondisiOptions' => $kondisiOptions,
             'ruanganOptions' => $ruanganOptions,
+            'jenisLaporanOptions' => $jenisLaporanOptions,
         ]);
     }
 
     /**
-     * Ekspor rekapitulasi aset BMD ke format PDF.
+     * Ekspor laporan BMD ke format PDF resmi landscape.
      */
     public function exportPdf(Request $request): HttpResponse
     {
-        abort_unless($request->user()->can('laporan.export'), 403, 'Akses tidak diizinkan untuk mengekspor laporan.');
+        abort_unless(
+            $request->user()->can('laporan.export') || in_array($request->user()->role?->value ?? (string) $request->user()->role, ['super_admin', 'pengurus_barang', 'penatausaha', 'camat']),
+            403,
+            'Akses tidak diizinkan untuk mengekspor laporan.'
+        );
 
         $filters = $request->all();
         $pdf = $this->laporanService->exportPdf($filters);
 
+        $jenis = (string) ($filters['jenis_laporan'] ?? 'rekap');
         $timestamp = now()->format('Ymd_His');
-        $fileName = "Rekapitulasi_Aset_BMD_Mekarmukti_{$timestamp}.pdf";
+        $fileName = "Laporan_BMD_Mekarmukti_{$jenis}_{$timestamp}.pdf";
 
         return $pdf->download($fileName);
     }
 
     /**
-     * Ekspor rekapitulasi aset BMD ke format Excel (.xlsx).
+     * Ekspor laporan BMD ke format Excel (.xlsx).
      */
     public function exportExcel(Request $request): BinaryFileResponse
     {
-        abort_unless($request->user()->can('laporan.export'), 403, 'Akses tidak diizinkan untuk mengekspor laporan.');
+        abort_unless(
+            $request->user()->can('laporan.export') || in_array($request->user()->role?->value ?? (string) $request->user()->role, ['super_admin', 'pengurus_barang', 'penatausaha', 'camat']),
+            403,
+            'Akses tidak diizinkan untuk mengekspor laporan.'
+        );
 
         return $this->laporanService->exportExcel($request->all());
     }

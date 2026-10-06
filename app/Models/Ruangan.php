@@ -46,4 +46,14 @@ class Ruangan extends Model
     {
         return $query->where('is_active', true);
     }
+
+    public function getNamaRuanganAttribute(): string
+    {
+        return (string) ($this->nama ?? '');
+    }
+
+    public function getKodeRuanganAttribute(): string
+    {
+        return (string) ($this->kode ?? '');
+    }
 }

@@ -33,6 +33,10 @@ pkp-mekarmukti/
 │   │   │   ├── LabelCetakController.php # Engine cetak stiker label QR A4 (12 per lembar)
 │   │   │   ├── AsetDokumenController.php# Secure storage & legal document management
 │   │   │   ├── PublicScanController.php# Endpoint publik verifikasi fisik /scan/{token}
+│   │   │   ├── MutasiAsetController.php # Mutasi aset ruangan & pegawai, BAST PDF & detail
+│   │   │   ├── PemeliharaanController.php # Riwayat servis, biaya & update kondisi fisik
+│   │   │   ├── InventarisasiController.php# Sensus/Opname fisik mobile-first, QR Scanner & tutup sesi
+│   │   │   ├── UsulanPenghapusanController.php # State machine approval berjenjang & SK penghapusan
 │   │   │   ├── RuanganController.php   # CRUD Master Ruangan penempatan aset
 │   │   │   ├── PegawaiController.php   # CRUD Master Pegawai penanggung jawab
 │   │   │   ├── KodeBarangController.php# Master & Autocomplete API Permendagri 108
@@ -41,16 +45,20 @@ pkp-mekarmukti/
 │   │   │   └── NotifikasiController.php
 │   │   ├── Middleware/
 │   │   │   ├── CheckUserActive.php       # Inactive user guard
-│   │   │   └── HandleInertiaRequests.php # Shared auth, user role & flash
+│   │   │   └── HandleInertiaRequests.php # Shared auth, user role, flash & realtime badge counters
 │   │   └── Requests/           # Form validation & authorization
 │   │       ├── Aset/
 │   │       │   ├── StoreAsetRequest.php  # Validasi dinamis Golongan A–F
 │   │       │   └── UpdateAsetRequest.php
-│   │       └── Master/
-│   │           ├── StoreRuanganRequest.php
-│   │           ├── UpdateRuanganRequest.php
-│   │           ├── StorePegawaiRequest.php
-│   │           └── UpdatePegawaiRequest.php
+│   │       ├── Master/
+│   │       │   ├── StoreRuanganRequest.php
+│   │       │   ├── UpdateRuanganRequest.php
+│   │       │   ├── StorePegawaiRequest.php
+│   │       │   └── UpdatePegawaiRequest.php
+│   │       ├── StoreMutasiRequest.php
+│   │       ├── StorePemeliharaanRequest.php
+│   │       ├── StoreInventarisasiRequest.php
+│   │       └── StoreUsulanPenghapusanRequest.php
 │   ├── Models/                 # Eloquent models, casts & relations
 │   │   ├── Pegawai.php         # Master pegawai (penanggung jawab / pemegang aset)
 │   │   ├── RefKodeBarang.php   # Permendagri 108 kodefikasi barang
@@ -64,11 +72,11 @@ pkp-mekarmukti/
 │   │   ├── AsetDetailLainnya.php# Detail KIB E
 │   │   ├── AsetDetailKdp.php   # Detail KIB F
 │   │   ├── AsetDokumen.php     # Dokumen bukti kepemilikan/foto aset (public & private)
-│   │   ├── MutasiAset.php      # Riwayat mutasi lokasi / pemegang / SKPD
+│   │   ├── MutasiAset.php      # Riwayat mutasi lokasi / pemegang / SKPD & BAST
 │   │   ├── Pemeliharaan.php    # Catatan servis, riwayat biaya pemeliharaan
-│   │   ├── Inventarisasi.php   # Sensus / stock opname berkala
-│   │   ├── InventarisasiItem.php # Item ceklis fisik sensus
-│   │   ├── UsulanPenghapusan.php # Berkas usulan hapus barang rusak berat/hilang
+│   │   ├── Inventarisasi.php   # Sensus / stock opname berkala (1 sesi aktif)
+│   │   ├── InventarisasiItem.php # Item ceklis fisik sensus & temuan lapangan
+│   │   ├── UsulanPenghapusan.php # Berkas usulan hapus barang rusak berat/hilang (State Machine)
 │   │   ├── UsulanPenghapusanItem.php# Rincian aset dalam usulan penghapusan
 │   │   ├── RiwayatAset.php     # Audit trail lifecycle aset
 │   │   ├── User.php            # Akun pengguna SIMUKTI (Spatie Roles)
@@ -77,23 +85,32 @@ pkp-mekarmukti/
 │   │   └── LogAktivitas.php
 │   ├── Repositories/           # Database abstraction layer
 │   │   ├── AsetRepository.php
+│   │   ├── MutasiAsetRepository.php
+│   │   ├── PemeliharaanRepository.php
+│   │   ├── InventarisasiRepository.php
+│   │   ├── UsulanPenghapusanRepository.php
 │   │   ├── RuanganRepository.php
 │   │   ├── PegawaiRepository.php
 │   │   ├── KodeBarangRepository.php
 │   │   └── NotifikasiRepository.php
 │   ├── Services/               # Pure business logic layer
 │   │   ├── AsetService.php     # Orchestrator CRUD aset, detail sub-table & QR
+│   │   ├── MutasiAsetService.php # Mutasi multi-aset atomik & BAST PDF generator
+│   │   ├── PemeliharaanService.php # Catatan servis & auto update kondisi fisik aset
+│   │   ├── InventarisasiService.php # Sensus fisik mobile-first, snapshot & sync tutup sesi
+│   │   ├── UsulanPenghapusanService.php # Approval state machine & penguncian aset
 │   │   ├── NomorRegistrasiGeneratorService.php # Atomic sequential counter (6-digit)
 │   │   ├── NomorBastGeneratorService.php       # Format resmi BAST Mekarmukti
 │   │   ├── RiwayatAsetService.php              # Pencatatan lifecycle otomatis
-│   │   ├── LaporanService.php  # Rekapitulasi BMD, export PDF & Excel
+│   │   ├── DashboardService.php # 4 Varian Dashboard Eksekutif (Camat, Sekcam, Pengurus, Pemegang)
+│   │   ├── LaporanService.php  # Generator Laporan Resmi BMD (KIB A-F, KIR, Mutasi, Penghapusan, Sensus)
 │   │   └── NotifikasiService.php
 │   ├── Observers/
 │   │   └── AsetObserver.php    # Lifecycle hook & audit logging
 │   ├── Policies/
 │   │   └── AsetPolicy.php      # Spatie role-permission enforcement
 │   └── Exports/
-│       └── RekapAsetExport.php # Excel export rekapitulasi BMD Mekarmukti
+│       └── BmdLaporanExport.php# Multi-format Excel export (KIB A-F, KIR, Mutasi, Penghapusan, Sensus)
 ├── database/
 │   ├── migrations/             # 19 database migrations SQLite/MySQL
 │   └── seeders/
@@ -107,26 +124,35 @@ pkp-mekarmukti/
 │       └── DatabaseSeeder.php
 ├── resources/
 │   ├── js/
-│   │   ├── Components/         # Atomic UI (GolonganBadge, StatCard, KodeBarangSearchSelect, etc.)
+│   │   ├── Components/         # Atomic UI (Sidebar, GolonganBadge, StatCard, etc.)
 │   │   ├── Layouts/            # AuthenticatedLayout, GuestLayout
 │   │   └── Pages/
 │   │       ├── Auth/           # Login, ForgotPassword, ResetPassword
-│   │       ├── Dashboard/      # Executive Dashboard BMD
+│   │       ├── Dashboard/      # Executive Dashboard BMD (4 Role-specific Variants)
 │   │       ├── Aset/           # Index (Table-to-Card & Bulk), Form (6 Golongan), Detail (5 Tabs)
+│   │       ├── Mutasi/         # Index, Create (Multi-aset), Show (Rincian BAST & Unduh PDF)
+│   │       ├── Pemeliharaan/   # Index (Pencatatan Servis & Riwayat Biaya)
+│   │       ├── Inventarisasi/  # Index, Show (Progress Ruangan & Rekap), SensusLapangan (Mobile-first QR Scanner)
+│   │       ├── Penghapusan/    # Index (Antrean Approval), Create (Pilih Aset), Show (Timeline Approval & Eksekusi SK)
 │   │       ├── Master/         # Ruangan/Index, Pegawai/Index, KodeBarang/Index
-│   │       ├── Public/         # AsetScanInfo (Portal Publik Scan QR)
-│   │       ├── Laporan/        # Laporan & Rekapitulasi BMD
+│   │       ├── Public/         # AsetScanInfo (Portal Publik Sanitized QR Scan)
+│   │       ├── Laporan/        # Laporan & Rekapitulasi BMD (KIB A-F, KIR, Mutasi, Penghapusan, Sensus)
+│   │       ├── AuditTrail/     # Audit Trail & Log Aktivitas Sistem
 │   │       └── Profile/        # Profil User
 │   └── views/
 │       ├── app.blade.php       # Inertia root layout (SIMUKTI Mekarmukti)
 │       ├── print/
-│       │   └── label_qr_a4.blade.php # Lembar cetak stiker QR label A4 (12 per lembar)
+│       │   ├── label_qr_a4.blade.php # Lembar cetak stiker QR label A4 (12 per lembar)
+│       │   └── bast_mutasi.blade.php # Berita Acara Serah Terima (BAST) Mutasi BMD A4 Resmi
 │       └── pdf/
-│           ├── kib.blade.php   # Kartu Inventaris Barang (KIB A-F)
-│           ├── kir.blade.php   # Kartu Inventaris Ruangan (KIR)
-│           └── rekap_aset.blade.php # Rekapitulasi BMD Mekarmukti
+│           ├── kib_golongan.blade.php # KIB A-F Landscape Tabel Resmi Permendagri 108
+│           ├── kir_ruangan.blade.php # KIR Ruangan Resmi Berita Acara & Tanda Tangan
+│           ├── laporan_mutasi.blade.php # Laporan Mutasi Barang Resmi
+│           ├── laporan_penghapusan.blade.php # Daftar Usulan Penghapusan Barang
+│           ├── laporan_inventarisasi.blade.php # Laporan Hasil Sensus/Opname Fisik
+│           └── rekap_aset.blade.php # Buku Inventaris Rekapitulasi BMD Mekarmukti
 └── routes/
-    ├── web.php                 # 56 Rute utama SIMUKTI terproteksi Spatie auth
+    ├── web.php                 # 81 Rute utama SIMUKTI terproteksi Spatie auth & policies
     ├── auth.php                # Rute autentikasi Breeze
     └── console.php             # Schedule & CLI command simukti:backup-database
 ```

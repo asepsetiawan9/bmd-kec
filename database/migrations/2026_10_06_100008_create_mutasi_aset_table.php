@@ -12,7 +12,7 @@ return new class extends Migration
     {
         Schema::create('mutasi_aset', function (Blueprint $table) {
             $table->id();
-            $table->string('nomor_bast', 100)->unique();
+            $table->string('nomor_bast', 100)->index();
             $table->foreignId('aset_id')->constrained('aset')->cascadeOnDelete();
             $table->string('jenis', 50)->default('pindah_ruangan'); // penempatan_awal, pindah_ruangan, ganti_pemegang, pengembalian
             $table->foreignId('dari_ruangan_id')->nullable()->constrained('ruangan')->nullOnDelete();

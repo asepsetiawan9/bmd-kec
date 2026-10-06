@@ -61,8 +61,15 @@ class HandleInertiaRequests extends Middleware
                 'tahun_aktif' => Pengaturan::get('tahun_aktif', date('Y')),
                 'app_name' => config('app.name', 'SIMUKTI'),
             ],
-            'notif_count' => fn () => $user ? Notifikasi::where('user_id', $user->id)->where('is_read', false)->count() : 0,
-            'sidebar_badges' => fn () => $user ? [] : [],
+            'sidebar_badges' => fn () => $user ? [
+                'penghapusan_pending_sekcam' => \App\Models\UsulanPenghapusan::where('status', \App\Enums\StatusUsulanPenghapusan::DIAJUKAN)->count(),
+                'penghapusan_pending_camat' => \App\Models\UsulanPenghapusan::where('status', \App\Enums\StatusUsulanPenghapusan::DIVERIFIKASI)->count(),
+                'penghapusan_dikembalikan' => \App\Models\UsulanPenghapusan::whereIn('status', [
+                    \App\Enums\StatusUsulanPenghapusan::DIKEMBALIKAN_PENATAUSAHA,
+                    \App\Enums\StatusUsulanPenghapusan::DIKEMBALIKAN_CAMAT,
+                ])->count(),
+                'opname_berjalan' => \App\Models\Inventarisasi::where('status', \App\Enums\StatusInventarisasi::BERJALAN)->count(),
+            ] : [],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

@@ -218,7 +218,8 @@ class BackupDatabaseCommand extends Command
         $files = File::files($backupDir);
 
         foreach ($files as $file) {
-            if (str_starts_with($file->getFilename(), 'sikemas_backup_') && $file->getMTime() < $cutoff) {
+            $name = $file->getFilename();
+            if ((str_starts_with($name, 'simukti_backup_') || str_starts_with($name, 'sikemas_backup_')) && $file->getMTime() < $cutoff) {
                 File::delete($file->getRealPath());
                 $deleted++;
             }
