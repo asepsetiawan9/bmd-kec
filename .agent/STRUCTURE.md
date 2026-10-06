@@ -186,5 +186,17 @@ Repository (Database abstraction, eager loading, query scopes)
 Model (Type-safe casts via Enums, relationships, observers)
      │
      ▼
-Database (MySQL 8.0+)
+Database (MySQL 8.0+ / SQLite 3)
 ```
+
+## 🌐 Infrastructure & Deployment Map
+
+```
+Deployment & Server Guardrails:
+├── GEMINI.md                                    # Root workspace AI execution protocol
+├── PANDUAN_ISOLASI_VPS_SIMPELKAN_31.97.187.71.md # Protokol isolasi server 31.97.187.71 (NEW)
+├── PANDUAN_ISOLASI_VPS_MULTI_APP.md             # Protokol isolasi server lama (36.64.200.242)
+├── .agents/rules/vps_deployment_guardrails.md   # AI Workspace Rule untuk pencegahan konflik
+└── .agent/workflows/deploy_simpelkan.md         # Prosedur otomatis deployment ke VPS 31.97.187.71
+```
+
