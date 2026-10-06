@@ -4,44 +4,50 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\UserRole;
-use App\Repositories\BelanjaRepository;
+use App\Models\Aset;
+use App\Models\Pengaturan;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __construct(
-        protected BelanjaRepository $belanjaRepository
-    ) {}
-
     /**
-     * Tampilan dashboard sederhana berbasis angka ringkasan SPJ / Bukti Belanja.
-     * Sesuai mandat rapat: bukan sistem keuangan kompleks, fokus pada arsip bukti belanja.
+     * Dashboard eksekutif BMD Kecamatan Mekarmukti (SIMUKTI).
      */
-    public function index(Request $request): Response|\Illuminate\Http\RedirectResponse
+    public function index(Request $request): Response
     {
         $user = $request->user();
-        $role = $user->role instanceof UserRole ? $user->role : UserRole::tryFrom((string) $user->role);
 
-        // SEC-01: Tolak tegas jika role tidak terdaftar / null
-        if (! $role) {
-            abort(403, 'Akses ditolak: Akun Anda tidak memiliki peran (role) yang sah dalam sistem SIMPEL KAN.');
+        // Agregasi statistik aset BMD jika tabel aset sudah ada
+        $totalAset = 0;
+        $totalNilai = 0;
+        $kondisiBaik = 0;
+        $kondisiRusakRingan = 0;
+        $kondisiRusakBerat = 0;
+        $recentAset = [];
+
+        try {
+            $totalAset = Aset::count();
+            $totalNilai = (float) (Aset::sum('nilai_perolehan') ?? 0);
+            $kondisiBaik = Aset::where('kondisi', 'baik')->count();
+            $kondisiRusakRingan = Aset::where('kondisi', 'rusak_ringan')->count();
+            $kondisiRusakBerat = Aset::where('kondisi', 'rusak_berat')->count();
+            $recentAset = Aset::latest()->take(5)->get();
+        } catch (\Throwable $e) {
+            // Fallback during fresh migration setup
         }
-
-        // Staf Umum diarahkan ke modul aset sebagai workspace utama
-        if ($role === UserRole::STAF_UMUM) {
-            return redirect()->route('aset.index');
-        }
-
-        $stats = $this->belanjaRepository->getDashboardStats();
-        $recentBelanja = $this->belanjaRepository->getRecent(8);
 
         return Inertia::render('Dashboard/Index', [
-            'stats' => $stats,
-            'recentBelanja' => $recentBelanja,
-            'userRole' => $role->value,
+            'stats' => [
+                'total_aset' => $totalAset,
+                'total_nilai' => $totalNilai,
+                'kondisi_baik' => $kondisiBaik,
+                'kondisi_rusak_ringan' => $kondisiRusakRingan,
+                'kondisi_rusak_berat' => $kondisiRusakBerat,
+            ],
+            'recentAset' => $recentAset,
+            'userRole' => $user?->role instanceof \BackedEnum ? $user->role->value : (string) $user?->role,
         ]);
     }
 }

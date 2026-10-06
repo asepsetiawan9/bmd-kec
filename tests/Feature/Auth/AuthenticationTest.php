@@ -31,9 +31,9 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create([
             'is_active' => true,
-            'role' => UserRole::STAF_KEUANGAN,
+            'role' => UserRole::PENGURUS_BARANG,
         ]);
-        $user->assignRole(UserRole::STAF_KEUANGAN->value);
+        $user->assignRole(UserRole::PENGURUS_BARANG->value);
 
         $response = $this->post('/login', [
             'email' => $user->email,
@@ -48,7 +48,7 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create([
             'is_active' => false,
-            'role' => UserRole::STAF_KEUANGAN,
+            'role' => UserRole::PENGURUS_BARANG,
         ]);
 
         $response = $this->post('/login', [
@@ -64,32 +64,32 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create([
             'is_active' => true,
-            'role' => UserRole::STAF_KEUANGAN,
+            'role' => UserRole::PENGURUS_BARANG,
         ]);
 
         $this->actingAs($user);
 
-        // Deactivate user
+        // Nonaktifkan user
         $user->update(['is_active' => false]);
 
-        // Attempt to access protected route
+        // Mencoba akses route terproteksi
         $response = $this->get('/dashboard');
 
         $this->assertGuest();
         $response->assertRedirect('/login');
     }
 
-    public function test_staf_umum_is_redirected_to_aset_module(): void
+    public function test_pengurus_barang_can_access_dashboard(): void
     {
         $user = User::factory()->create([
             'is_active' => true,
-            'role' => UserRole::STAF_UMUM,
+            'role' => UserRole::PENGURUS_BARANG,
         ]);
-        $user->assignRole(UserRole::STAF_UMUM->value);
+        $user->assignRole(UserRole::PENGURUS_BARANG->value);
 
         $response = $this->actingAs($user)->get('/dashboard');
 
-        $response->assertRedirect(route('aset.index'));
+        $response->assertStatus(200);
     }
 
     public function test_users_can_logout(): void

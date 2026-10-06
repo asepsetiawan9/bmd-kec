@@ -13,7 +13,7 @@ class RegistrationTest extends TestCase
     {
         $response = $this->get('/register');
 
-        $response->assertStatus(403);
+        $response->assertStatus(404);
     }
 
     public function test_public_users_cannot_register(): void
@@ -25,7 +25,7 @@ class RegistrationTest extends TestCase
             'password_confirmation' => 'password',
         ]);
 
-        $response->assertStatus(403);
+        $response->assertStatus(404);
         $this->assertGuest();
     }
 }

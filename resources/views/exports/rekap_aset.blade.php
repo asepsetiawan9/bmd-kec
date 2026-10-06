@@ -2,7 +2,7 @@
     <thead>
         <tr>
             <th colspan="9" style="font-weight: bold; font-size: 14pt; text-align: center;">
-                PEMERINTAH KABUPATEN GARUT - KECAMATAN CARINGIN
+                PEMERINTAH KABUPATEN GARUT - KECAMATAN MEKARMUKTI
             </th>
         </tr>
         <tr>

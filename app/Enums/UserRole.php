@@ -7,23 +7,19 @@ namespace App\Enums;
 enum UserRole: string
 {
     case SUPER_ADMIN = 'super_admin';
-    case OPERATOR = 'operator';
-    case STAF_UMUM = 'staf_umum';
-    case STAF_KEUANGAN = 'staf_keuangan';
-    case KASI = 'kasi';
-    case SEKMAT = 'sekmat';
+    case PENGURUS_BARANG = 'pengurus_barang';
+    case PENATAUSAHA = 'penatausaha';
     case CAMAT = 'camat';
+    case PEMEGANG = 'pemegang';
 
     public function label(): string
     {
         return match ($this) {
             self::SUPER_ADMIN => 'Super Administrator',
-            self::OPERATOR => 'Operator',
-            self::STAF_UMUM => 'Staf Kasubag Umum',
-            self::STAF_KEUANGAN => 'Staf Keuangan',
-            self::KASI => 'Kasi',
-            self::SEKMAT => 'Sekretaris Kecamatan',
-            self::CAMAT => 'Camat',
+            self::PENGURUS_BARANG => 'Pengurus Barang',
+            self::PENATAUSAHA => 'Pejabat Penatausahaan (Sekcam)',
+            self::CAMAT => 'Pengguna Barang (Camat)',
+            self::PEMEGANG => 'Pemegang Barang',
         };
     }
 

@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Enums\SpjStatus;
 use App\Enums\UserRole;
 use App\Models\Notifikasi;
-use App\Models\Spj;
+use App\Models\Pengaturan;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -47,8 +46,7 @@ class HandleInertiaRequests extends Middleware
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'role' => $user->role instanceof UserRole ? $user->role->value : (string) $user->role,
-                    'seksi' => $user->seksi ? ($user->seksi instanceof \BackedEnum ? $user->seksi->value : (string) $user->seksi) : null,
+                    'role' => $user->role instanceof \BackedEnum ? $user->role->value : (string) $user->role,
                     'nip' => $user->nip,
                     'jabatan' => $user->jabatan,
                     'no_hp' => $user->no_hp,
@@ -57,27 +55,14 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
                 'permissions' => $permissions,
             ],
-            'notif_count' => $user ? Notifikasi::where('user_id', $user->id)->where('is_read', false)->count() : 0,
-            'sidebar_badges' => $user ? [
-                'belanja_pending_sekmat' => in_array($user->role instanceof UserRole ? $user->role->value : (string) $user->role, [UserRole::SEKMAT->value, UserRole::SUPER_ADMIN->value], true)
-                    ? \App\Models\Belanja::where('status_verifikasi', \App\Enums\StatusVerifikasi::DIAJUKAN)->count()
-                    : 0,
-                'belanja_pending_camat' => in_array($user->role instanceof UserRole ? $user->role->value : (string) $user->role, [UserRole::CAMAT->value, UserRole::SUPER_ADMIN->value], true)
-                    ? \App\Models\Belanja::where('status_verifikasi', \App\Enums\StatusVerifikasi::DIVERIFIKASI_SEKMAT)->count()
-                    : 0,
-                'belanja_revisi_operator' => in_array($user->role instanceof UserRole ? $user->role->value : (string) $user->role, [UserRole::OPERATOR->value, UserRole::SUPER_ADMIN->value], true)
-                    ? \App\Models\Belanja::whereIn('status_verifikasi', [\App\Enums\StatusVerifikasi::DIKEMBALIKAN_SEKMAT, \App\Enums\StatusVerifikasi::DIKEMBALIKAN_CAMAT])->count()
-                    : 0,
-                'spj_pending_konsolidasi' => in_array($user->role instanceof UserRole ? $user->role->value : (string) $user->role, [UserRole::STAF_KEUANGAN->value, UserRole::SUPER_ADMIN->value], true)
-                    ? Spj::where('status', SpjStatus::DIAJUKAN_KASI)->count()
-                    : 0,
-                'spj_pending_verifikasi' => in_array($user->role instanceof UserRole ? $user->role->value : (string) $user->role, [UserRole::SEKMAT->value, UserRole::CAMAT->value, UserRole::SUPER_ADMIN->value], true)
-                    ? Spj::where('status', SpjStatus::DIAJUKAN_VERIFIKASI)->count()
-                    : 0,
-                'spj_ditolak_kasi' => in_array($user->role instanceof UserRole ? $user->role->value : (string) $user->role, [UserRole::KASI->value], true)
-                    ? Spj::where('diajukan_oleh', $user->id)->where('status', SpjStatus::DITOLAK)->count()
-                    : 0,
-            ] : [],
+            'pengaturan' => fn () => [
+                'nama_instansi' => Pengaturan::get('nama_instansi', 'Kecamatan Mekarmukti'),
+                'kabupaten' => Pengaturan::get('kabupaten', 'Kabupaten Garut'),
+                'tahun_aktif' => Pengaturan::get('tahun_aktif', date('Y')),
+                'app_name' => config('app.name', 'SIMUKTI'),
+            ],
+            'notif_count' => fn () => $user ? Notifikasi::where('user_id', $user->id)->where('is_read', false)->count() : 0,
+            'sidebar_badges' => fn () => $user ? [] : [],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

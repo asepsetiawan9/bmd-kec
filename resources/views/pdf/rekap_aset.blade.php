@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Rekapitulasi Barang Milik Daerah (BMD) - Kecamatan Caringin</title>
+    <title>Rekapitulasi Barang Milik Daerah (BMD) - Kecamatan Mekarmukti</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -126,8 +126,8 @@
 <body>
     <div class="header">
         <h3>Pemerintah {{ $settings['kabupaten'] ?? 'Kabupaten Garut' }}</h3>
-        <h2>Kecamatan {{ $settings['nama_kecamatan'] ?? 'Caringin' }}</h2>
-        <p>{{ $settings['alamat_kantor'] ?? 'Jl. Raya Caringin No. XX, Kec. Caringin, Kab. Garut' }}</p>
+        <h2>Kecamatan {{ $settings['nama_kecamatan'] ?? 'Mekarmukti' }}</h2>
+        <p>{{ $settings['alamat_kantor'] ?? 'Jl. Raya Mekarmukti No. XX, Kec. Mekarmukti, Kab. Garut' }}</p>
     </div>
 
     <div class="title-section">
@@ -164,46 +164,49 @@
         <thead>
             <tr>
                 <th style="width: 25px;">No</th>
-                <th style="width: 100px;">Kode Barang</th>
+                <th style="width: 80px;">Kode Barang</th>
+                <th style="width: 75px;">No. Register</th>
                 <th>Nama Barang & Merk / Tipe</th>
-                <th style="width: 45px;">Tahun</th>
-                <th style="width: 80px;">Kondisi</th>
-                <th style="width: 120px;">Ruangan / Lokasi</th>
-                <th style="width: 95px;">Nilai Perolehan (Rp)</th>
-                <th style="width: 110px;">Penanggung Jawab</th>
+                <th style="width: 40px;">Tahun</th>
+                <th style="width: 70px;">Kondisi</th>
+                <th style="width: 110px;">Ruangan / Lokasi</th>
+                <th style="width: 90px;">Nilai Perolehan (Rp)</th>
+                <th style="width: 105px;">Pemegang</th>
             </tr>
         </thead>
         <tbody>
             @forelse($asetList as $idx => $aset)
                 @php
                     $kondisiVal = $aset->kondisi instanceof \BackedEnum ? $aset->kondisi->value : (string) $aset->kondisi;
+                    $kondisiLabel = $aset->kondisi instanceof \BackedEnum ? $aset->kondisi->label() : (string) $aset->kondisi;
                 @endphp
                 <tr>
                     <td class="text-center">{{ $idx + 1 }}</td>
                     <td class="text-center" style="font-family: monospace;">{{ $aset->kode_barang }}</td>
+                    <td class="text-center" style="font-family: monospace;">{{ $aset->nomor_register }}</td>
                     <td>
-                        <strong>{{ $aset->nama }}</strong>
-                        @if($aset->merk_type)
-                            <br><span style="color: #64748b; font-size: 8.5px;">{{ $aset->merk_type }}</span>
+                        <strong>{{ $aset->nama_barang }}</strong>
+                        @if($aset->merk_tipe)
+                            <br><span style="color: #64748b; font-size: 8.5px;">{{ $aset->merk_tipe }}</span>
                         @endif
                     </td>
                     <td class="text-center">{{ $aset->tahun_perolehan }}</td>
                     <td class="text-center">
                         <span class="badge badge-{{ $kondisiVal }}">
-                            {{ str_replace('_', ' ', strtoupper($kondisiVal)) }}
+                            {{ strtoupper($kondisiLabel) }}
                         </span>
                     </td>
-                    <td>{{ $aset->lokasi }}</td>
-                    <td class="text-right font-bold">Rp {{ number_format((float) $aset->nilai, 2, ',', '.') }}</td>
-                    <td>{{ $aset->penanggungJawab?->name ?? '-' }}</td>
+                    <td>{{ $aset->ruangan?->nama_ruangan ?? '-' }}</td>
+                    <td class="text-right font-bold">Rp {{ number_format((float) $aset->nilai_perolehan, 2, ',', '.') }}</td>
+                    <td>{{ $aset->pegawai?->nama ?? '-' }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="text-center">Tidak ada data inventaris aset BMD.</td>
+                    <td colspan="9" class="text-center">Tidak ada data inventaris aset BMD.</td>
                 </tr>
             @endforelse
             <tr style="background-color: #f1f5f9; font-weight: bold;">
-                <td colspan="6" class="text-center">TOTAL NILAI KESELURUHAN BMD</td>
+                <td colspan="7" class="text-center">TOTAL NILAI KESELURUHAN BMD</td>
                 <td class="text-right">Rp {{ number_format($summary['total_nilai'], 2, ',', '.') }}</td>
                 <td></td>
             </tr>
@@ -214,16 +217,16 @@
         <tr>
             <td>
                 Mengetahui,<br>
-                <strong>Camat Caringin</strong>
+                <strong>Camat Mekarmukti</strong>
                 <div class="signature-space"></div>
                 <strong><u>{{ $settings['nama_camat'] ?? 'Drs. H. Asep Mulyana, M.Si.' }}</u></strong><br>
                 NIP. {{ $settings['nip_camat'] ?? '197001011998011001' }}
             </td>
             <td>
-                Caringin, {{ now()->translatedFormat('d F Y') }}<br>
+                Mekarmukti, {{ now()->translatedFormat('d F Y') }}<br>
                 <strong>Pengurus Barang Pengguna</strong>
                 <div class="signature-space"></div>
-                <strong><u>{{ $settings['nama_pengurus_barang'] ?? 'Admin Umum / Kasubag Umum' }}</u></strong><br>
+                <strong><u>{{ $settings['nama_pengurus_barang'] ?? 'Pengurus Barang Mekarmukti' }}</u></strong><br>
                 NIP. {{ $settings['nip_pengurus_barang'] ?? '198501012010011001' }}
             </td>
         </tr>

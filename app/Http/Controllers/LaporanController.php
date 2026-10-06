@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\SeksiType;
-use App\Models\Kegiatan;
+use App\Enums\GolonganKib;
+use App\Enums\KondisiAset;
+use App\Models\Ruangan;
 use App\Services\LaporanService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -20,44 +21,50 @@ class LaporanController extends Controller
     ) {}
 
     /**
-     * Display report dashboard with filters and data preview.
+     * Tampilkan halaman pelaporan BMD Mekarmukti.
      */
     public function index(Request $request): Response
     {
         abort_unless($request->user()->can('laporan.view'), 403, 'Akses tidak diizinkan untuk melihat laporan.');
 
         $filters = $request->only([
-            'jenis_laporan',
-            'tanggal_mulai',
-            'tanggal_selesai',
-            'kegiatan_id',
-            'seksi',
+            'golongan',
             'kondisi',
-            'lokasi',
-            'tahun_anggaran',
+            'ruangan_id',
+            'tahun_perolehan',
+            'search',
         ]);
 
         $reportData = $this->laporanService->getLaporanData($filters);
 
-        $kegiatanOptions = Kegiatan::select('id', 'nama', 'kode_rekening')
-            ->orderBy('nama')
-            ->get()
-            ->map(fn ($k) => ['id' => $k->id, 'nama' => "{$k->kode_rekening} - {$k->nama}"]);
+        $golonganOptions = array_map(fn (GolonganKib $g) => [
+            'value' => $g->value,
+            'label' => "Golongan {$g->value} ({$g->label()})",
+        ], GolonganKib::cases());
 
-        $seksiOptions = array_map(fn ($case) => [
-            'value' => $case->value,
-            'label' => ucfirst($case->value),
-        ], SeksiType::cases());
+        $kondisiOptions = array_map(fn (KondisiAset $k) => [
+            'value' => $k->value,
+            'label' => $k->label(),
+        ], KondisiAset::cases());
+
+        $ruanganOptions = Ruangan::select('id', 'nama_ruangan', 'kode_ruangan')
+            ->orderBy('nama_ruangan')
+            ->get()
+            ->map(fn (Ruangan $r) => [
+                'id' => $r->id,
+                'nama' => "[{$r->kode_ruangan}] {$r->nama_ruangan}",
+            ]);
 
         return Inertia::render('Laporan/Index', [
             'reportData' => $reportData,
-            'kegiatanOptions' => $kegiatanOptions,
-            'seksiOptions' => $seksiOptions,
+            'golonganOptions' => $golonganOptions,
+            'kondisiOptions' => $kondisiOptions,
+            'ruanganOptions' => $ruanganOptions,
         ]);
     }
 
     /**
-     * Export report to PDF.
+     * Ekspor rekapitulasi aset BMD ke format PDF.
      */
     public function exportPdf(Request $request): HttpResponse
     {
@@ -66,15 +73,14 @@ class LaporanController extends Controller
         $filters = $request->all();
         $pdf = $this->laporanService->exportPdf($filters);
 
-        $jenis = $filters['jenis_laporan'] ?? 'keuangan';
         $timestamp = now()->format('Ymd_His');
-        $fileName = "Laporan_{$jenis}_{$timestamp}.pdf";
+        $fileName = "Rekapitulasi_Aset_BMD_Mekarmukti_{$timestamp}.pdf";
 
         return $pdf->download($fileName);
     }
 
     /**
-     * Export report to Excel.
+     * Ekspor rekapitulasi aset BMD ke format Excel (.xlsx).
      */
     public function exportExcel(Request $request): BinaryFileResponse
     {

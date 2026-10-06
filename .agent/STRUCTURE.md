@@ -1,202 +1,117 @@
-# 🏛️ SIKEMAS Architecture & Structure Map
+# 🏛️ SIMUKTI Architecture & Structure Map
 
-Sistem Informasi Keuangan dan Aset Terintegrasi — Kecamatan Caringin
+Sistem Informasi Manajemen Barang Milik Daerah (BMD) — Pemerintah Kecamatan Mekarmukti, Kabupaten Garut
 
 ## 📁 System Architecture Overview
 
 ```
-pkp-caringin/
+pkp-mekarmukti/
 ├── .agent/
-│   ├── STRUCTURE.md            # Peta navigasi arsitektur dan modul
+│   ├── STRUCTURE.md            # Peta navigasi arsitektur dan modul BMD v3
 │   └── PROJECT_LOG.md          # Timeline atomic log aktivitas AI
 ├── app/
 │   ├── Enums/                  # PHP 8.2 Backed Enums type-safe
-│   │   ├── UserRole.php        # Updated: added OPERATOR
-│   │   ├── JenisBelanja.php    # V2: cetak, mamin, perdin, atk, lainnya
-│   │   ├── JenisDokumen.php    # V2: nota, kwitansi, faktur, kontrak, lainnya
-│   │   ├── StatusDokumen.php   # V2: belum_lengkap, lengkap
-│   │   ├── StatusVerifikasi.php# V2: draft, diajukan, diverifikasi_sekmat, dikembalikan_sekmat, disetujui_camat, dikembalikan_camat
-│   │   ├── SpjStatus.php       # Legacy V1
-│   │   ├── KondisiAset.php     # Legacy V1 (BMD Hidden)
-│   │   ├── JenisKibKir.php     # Legacy V1 (BMD Hidden)
-│   │   ├── SeksiType.php
-│   │   ├── SumberDana.php
-│   │   ├── StatusKegiatan.php
-│   │   ├── CaraPerolehan.php
+│   │   ├── UserRole.php        # Roles: camat, sekmat, pengurus_barang, pengelola_aset, pegawai
+│   │   ├── GolonganKib.php     # A (Tanah), B (Peralatan), C (Gedung), D (Jalan), E (Aset Lain), F (KDP)
+│   │   ├── KondisiAset.php     # baik, rusak_ringan, rusak_berat
+│   │   ├── StatusAset.php      # aktif, mutasi, diusulkan_penghapusan, dihapuskan, hilang
+│   │   ├── CaraPerolehan.php   # pembelian, hibah, bantuan, mutasi_masuk, lainnya
+│   │   ├── SumberDana.php      # apbd_kabupaten, apbd_provinsi, apbn, lainnya
+│   │   ├── JenisDokumenAset.php# sertifikat, bpkb, stnk, bast, faktur, foto, lainnya
+│   │   ├── JenisMutasi.php     # internal_ruangan, penanggung_jawab, eksternal_skpd
+│   │   ├── JenisPemeliharaan.php# rutin, berkala, perbaikan_berat
+│   │   ├── HasilInventarisasi.php# ditemukan_sesuai, ditemukan_rusak, tidak_ditemukan, berlebih
+│   │   ├── StatusInventarisasi.php# draft, dalam_proses, selesai
+│   │   ├── StatusUsulanPenghapusan.php# draft, diajukan, diverifikasi_sekmat, disetujui_camat, diteruskan_bpkad, selesai, ditolak
+│   │   ├── AksiRiwayatAset.php # register, update, mutasi, pemeliharaan, inventarisasi, usulan_penghapusan, penghapusan
 │   │   └── NotifikasiTipe.php
-│   ├── Exceptions/             # Custom Domain Exceptions (BR Enforcement)
-│   │   ├── SpjStatusTransitionException.php
-│   │   ├── PaguExceededException.php
-│   │   └── PendingRejectedSpjException.php
 │   ├── Http/
 │   │   ├── Controllers/        # Request handling & Inertia responses
-│   │   │   ├── Auth/           # Breeze authentication controllers
-│   │   │   ├── DashboardController.php # V2: simple statistics metrics
-│   │   │   ├── ProgramController.php   # V2: CRUD Program/Kegiatan/SubKegiatan
-│   │   │   ├── BelanjaController.php   # V2: CRUD Belanja & multi-filter
-│   │   │   ├── DokumenBuktiController.php # V2: Multi-file evidence manager
-│   │   │   ├── VerifikasiController.php   # V2: Verifikasi Sekmat & Persetujuan Camat
-│   │   │   ├── SpjController.php       # Legacy V1
-│   │   │   ├── KegiatanController.php  # Legacy V1
-│   │   │   ├── AsetController.php      # Legacy V1 (BMD Hidden)
-│   │   │   ├── LaporanController.php
+│   │   │   ├── Auth/           # Breeze authentication controllers (Login, Profile, Password)
+│   │   │   ├── DashboardController.php # Dashboard metrik eksekutif BMD Mekarmukti
+│   │   │   ├── AsetController.php      # CRUD Aset, KIB, QR Code on-demand
+│   │   │   ├── FileController.php      # Streaming file storage terproteksi (whitelist)
+│   │   │   ├── LaporanController.php   # Rekapitulasi BMD, PDF & Excel export
 │   │   │   └── NotifikasiController.php
 │   │   ├── Middleware/
 │   │   │   ├── CheckUserActive.php       # Inactive user guard
-│   │   │   └── HandleInertiaRequests.php # Shared auth, badges & flash
-│   │   ├── Requests/           # Form validation & authorization
-│   │   │   ├── StoreProgramRequest.php     # V2
-│   │   │   ├── StoreKegiatanRapRequest.php # V2
-│   │   │   ├── StoreSubKegiatanRequest.php # V2
-│   │   │   ├── StoreBelanjaRequest.php     # V2
-│   │   │   ├── UpdateBelanjaRequest.php    # V2
-│   │   │   ├── UploadDokumenRequest.php    # V2
-│   │   │   ├── StoreSpjRequest.php
-│   │   │   ├── VerifikasiSpjRequest.php
-│   │   │   ├── Kegiatan/
-│   │   │   │   ├── StoreKegiatanRequest.php
-│   │   │   │   └── UpdateKegiatanRequest.php
-│   │   │   └── Aset/
-│   │   │       ├── StoreAsetRequest.php
-│   │   │       └── UpdateAsetRequest.php
-│   │   └── Resources/          # API/Inertia data transformation
+│   │   │   └── HandleInertiaRequests.php # Shared auth, user role & flash
+│   │   └── Requests/           # Form validation & authorization
+│   │       └── Aset/
+│   │           ├── StoreAsetRequest.php
+│   │           └── UpdateAsetRequest.php
 │   ├── Models/                 # Eloquent models, casts & relations
-│   │   ├── Program.php         # V2: Hierarki Level 1
-│   │   ├── KegiatanRap.php     # V2: Hierarki Level 2
-│   │   ├── SubKegiatan.php     # V2: Hierarki Level 3
-│   │   ├── Belanja.php         # V2: Entitas utama Uraian Belanja
-│   │   ├── DokumenBukti.php    # V2: Multi-file bukti per belanja
-│   │   ├── RiwayatProses.php   # V2: Audit trail verifikasi & status
-│   │   ├── User.php
-│   │   ├── Kegiatan.php        # Legacy V1
-│   │   ├── Spj.php             # Legacy V1
-│   │   ├── Aset.php            # Legacy V1 (BMD Hidden)
-│   │   ├── KibKir.php          # Legacy V1 (BMD Hidden)
-│   │   ├── ArsipDigital.php
+│   │   ├── Pegawai.php         # Master pegawai (penanggung jawab / pemegang aset)
+│   │   ├── RefKodeBarang.php   # Permendagri 108 kodefikasi barang
+│   │   ├── Ruangan.php         # Master ruangan/lokasi penempatan aset (KIR)
+│   │   ├── NomorUrut.php       # Atomic counter lock table
+│   │   ├── Aset.php            # Entitas utama BMD
+│   │   ├── AsetDetailTanah.php # Detail KIB A
+│   │   ├── AsetDetailPeralatan.php # Detail KIB B
+│   │   ├── AsetDetailGedung.php# Detail KIB C
+│   │   ├── AsetDetailJalan.php # Detail KIB D
+│   │   ├── AsetDetailLainnya.php# Detail KIB E
+│   │   ├── AsetDetailKdp.php   # Detail KIB F
+│   │   ├── AsetDokumen.php     # Dokumen bukti kepemilikan/foto aset
+│   │   ├── MutasiAset.php      # Riwayat mutasi lokasi / pemegang / SKPD
+│   │   ├── Pemeliharaan.php    # Catatan servis, riwayat biaya pemeliharaan
+│   │   ├── Inventarisasi.php   # Sensus / stock opname berkala
+│   │   ├── InventarisasiItem.php # Item ceklis fisik sensus
+│   │   ├── UsulanPenghapusan.php # Berkas usulan hapus barang rusak berat/hilang
+│   │   ├── UsulanPenghapusanItem.php# Rincian aset dalam usulan penghapusan
+│   │   ├── RiwayatAset.php     # Audit trail lifecycle aset
+│   │   ├── User.php            # Akun pengguna SIMUKTI (Spatie Roles)
 │   │   ├── Notifikasi.php
 │   │   ├── Pengaturan.php
 │   │   └── LogAktivitas.php
 │   ├── Repositories/           # Database abstraction layer
-│   │   ├── Contracts/          # Repository interfaces
-│   │   ├── ProgramRepository.php      # V2: Program, KegiatanRap, SubKegiatan
-│   │   ├── BelanjaRepository.php      # V2: Belanja filtering, antrean & stats
-│   │   ├── DokumenBuktiRepository.php # V2: Dokumen CRUD & lock check
-│   │   ├── KegiatanRepository.php
-│   │   ├── SpjRepository.php
 │   │   ├── AsetRepository.php
+│   │   ├── RuanganRepository.php
+│   │   ├── PegawaiRepository.php
+│   │   ├── KodeBarangRepository.php
 │   │   └── NotifikasiRepository.php
 │   ├── Services/               # Pure business logic layer
-│   │   ├── ProgramService.php      # V2: Hierarki CRUD & safe deletion
-│   │   ├── BelanjaService.php      # V2: Belanja state machine & workflow
-│   │   ├── DokumenBuktiService.php # V2: Upload/delete with BR enforcement
-│   │   ├── DashboardService.php    # Real-time multi-role dashboard analytics
-│   │   ├── LaporanService.php      # Filtered reporting, PDF & Excel export
-│   │   ├── KegiatanService.php
-│   │   ├── SpjService.php
-│   │   ├── AsetService.php
+│   │   ├── AsetService.php     # Orchestrator CRUD aset, detail sub-table & QR
+│   │   ├── NomorRegistrasiGeneratorService.php # Atomic sequential counter (6-digit)
+│   │   ├── NomorBastGeneratorService.php       # Format resmi BAST Mekarmukti
+│   │   ├── RiwayatAsetService.php              # Pencatatan lifecycle otomatis
+│   │   ├── LaporanService.php  # Rekapitulasi BMD, export PDF & Excel
 │   │   └── NotifikasiService.php
-│   ├── Exports/                # Maatwebsite Excel spreadsheet exports
-│   │   ├── LaporanKeuanganExport.php
-│   │   └── RekapAsetExport.php
-│   ├── Policies/               # Granular authorization
-│   │   ├── ProgramPolicy.php       # V2
-│   │   ├── BelanjaPolicy.php       # V2
-│   │   ├── SpjPolicy.php
-│   │   ├── AsetPolicy.php
-│   │   └── KegiatanPolicy.php
-│   └── Observers/              # Side-effects & audit trail
-│       ├── SpjObserver.php
-│       └── AsetObserver.php
+│   ├── Observers/
+│   │   └── AsetObserver.php    # Lifecycle hook & audit logging
+│   ├── Policies/
+│   │   └── AsetPolicy.php      # Spatie role-permission enforcement
+│   └── Exports/
+│       └── RekapAsetExport.php # Excel export rekapitulasi BMD Mekarmukti
 ├── database/
-│   ├── factories/              # Eloquent model factories
-│   │   ├── UserFactory.php
-│   │   └── AsetFactory.php
-│   ├── migrations/             # Database schema migrations
-│   └── seeders/                # Database seeders (Users, Kegiatan, Aset, Pengaturan)
+│   ├── migrations/             # 19 database migrations SQLite/MySQL
+│   └── seeders/
+│       ├── RolePermissionSeeder.php # Spatie roles & 20 permissions BMD
+│       ├── PengaturanSeeder.php     # Konfigurasi instansi Kecamatan Mekarmukti
+│       ├── PegawaiSeeder.php        # 8 Pegawai Kecamatan Mekarmukti
+│       ├── RuanganSeeder.php        # 12 Ruangan Kantor Kecamatan Mekarmukti
+│       ├── KodeBarangSeeder.php     # 32 Kode Barang Permendagri 108 (Gol A–F)
+│       ├── UserSeeder.php           # Akun Camat, Sekmat, Pengurus Barang, Pengelola
+│       ├── AsetSeeder.php           # 12 Sampel Aset Riil Golongan A–F
+│       └── DatabaseSeeder.php
 ├── resources/
-│   ├── views/
-│   │   ├── exports/            # Excel Blade view templates
-│   │   │   ├── laporan_keuangan.blade.php
-│   │   │   └── rekap_aset.blade.php
-│   │   └── pdf/                # DomPDF Blade templates
-│   │       ├── kib.blade.php   # Kartu Inventaris Barang (KIB)
-│   │       ├── kir.blade.php   # Kartu Inventaris Ruangan (KIR)
-│   │       ├── laporan_keuangan.blade.php # Laporan Realisasi Keuangan & SPJ
-│   │       └── rekap_aset.blade.php       # Rekapitulasi BMD
-│   └── js/                     # Frontend Inertia + React (Atomic Design)
-│       ├── Components/         # Sidebar, Topbar, StatusBadge, KondisiBadge, ConfirmModal, EmptyState, LoadingSkeleton, QrDownloadButton
-│       ├── Layouts/            # AuthenticatedLayout, GuestLayout
-│       └── Pages/              # Role-specific Dashboards (Recharts), Spj, Aset, Laporan (Index)
-├── app/Console/Commands/       # Artisan automation commands
-│   ├── BackupDatabaseCommand.php # Scheduled daily backup 02:00 WIB with 30-day retention
-│   └── AuditSummaryCommand.php  # 14-day post go-live audit trail analysis
-├── deployment/                 # Production deployment scripts & server configs
-│   ├── nginx.conf              # Nginx server block with SSL, rate limiting & security headers
-│   ├── backup.sh               # Shell script for Linux cron job & file upload sync
-│   └── deploy.sh               # One-click zero-downtime production deployment script
-├── docs/                       # Official operational documentation
-│   ├── UAT_CHECKLIST.md        # Comprehensive UAT scenario checklist & sign-off sheet
-│   ├── SOP_PENGGUNAAN_SIKEMAS.md # Standard Operating Procedures per role (Kasi, Keuangan, Sekmat, Umum, Camat)
-│   ├── CHECKLIST_ONBOARDING_STAF.md # New staff onboarding guide & compliance checklist
-│   └── PANDUAN_DEPLOYMENT_VPS.md # Step-by-step VPS Ubuntu 22.04 LTS deployment manual
-├── backup/                     # Database automated backup dumps storage (.sql)
-└── tests/
-    └── Feature/
-        ├── V2/
-        │   ├── ProgramHierarchyCrudTest.php # 5 tests, 32 assertions (Program/Kegiatan/SubKegiatan)
-        │   ├── BelanjaCrudWorkflowTest.php  # 5 tests, 60 assertions (Belanja, Dokumen, Immutability)
-        │   └── VerifikasiWorkflowTest.php   # 1 test, 35 assertions (Operator -> Sekmat -> Camat Lifecycle)
-        ├── UAT/
-        │   └── UatScenarioTest.php        # 5 tests, 129 assertions, Full E2E per-role testing
-        ├── Aset/
-        │   └── AsetWorkflowTest.php       # 11 tests, BR-ASET-01 s/d BR-ASET-06 & QR/PDF
-        ├── Spj/
-        │   └── SpjWorkflowTest.php        # 12 tests, state machine & BR-SPJ-01 s/d BR-SPJ-10
-        ├── Dashboard/
-        │   └── DashboardWorkflowTest.php  # 5 tests, role routing, unified Dashboard/Index & redirects
-        ├── Laporan/
-        │   └── LaporanWorkflowTest.php    # 7 tests, auth, preview, PDF & Excel exports
-        ├── Kegiatan/
-        │   └── KegiatanWorkflowTest.php   # 7 tests, CRUD kegiatan, validation, & audit log
-        └── Authorization/
-            └── RolePermissionPolicyTest.php # 6 tests, RBAC permissions
+│   ├── js/
+│   │   ├── Components/         # Atomic UI (Logo, Sidebar, Topbar, Modal, etc.)
+│   │   ├── Layouts/            # AuthenticatedLayout, GuestLayout
+│   │   └── Pages/
+│   │       ├── Auth/           # Login, ForgotPassword, ResetPassword
+│   │       ├── Dashboard/      # Executive Dashboard BMD
+│   │       ├── Aset/           # Daftar Aset & Detail Aset
+│   │       ├── Laporan/        # Laporan & Rekapitulasi BMD
+│   │       └── Profile/        # Profil User
+│   └── views/
+│       ├── app.blade.php       # Inertia root layout (SIMUKTI Mekarmukti)
+│       └── pdf/
+│           ├── kib.blade.php   # Kartu Inventaris Barang (KIB A-F)
+│           ├── kir.blade.php   # Kartu Inventaris Ruangan (KIR)
+│           └── rekap_aset.blade.php # Rekapitulasi BMD Mekarmukti
+└── routes/
+    ├── web.php                 # Rute utama SIMUKTI terproteksi Spatie auth
+    ├── auth.php                # Rute autentikasi Breeze
+    └── console.php             # Schedule & CLI command simukti:backup-database
 ```
-
-## 🔄 Core Pattern Flow
-
-```
-HTTP Request
-     │
-     ▼
-Route (`routes/web.php`)
-     │
-     ▼
-FormRequest (Validation & Policy Auth)
-     │
-     ▼
-Controller (Receives input, calls Service, renders Inertia/JSON)
-     │
-     ▼
-Service (Pure business logic, state machines, transactions)
-     │
-     ▼
-Repository (Database abstraction, eager loading, query scopes)
-     │
-     ▼
-Model (Type-safe casts via Enums, relationships, observers)
-     │
-     ▼
-Database (MySQL 8.0+ / SQLite 3)
-```
-
-## 🌐 Infrastructure & Deployment Map
-
-```
-Deployment & Server Guardrails:
-├── GEMINI.md                                    # Root workspace AI execution protocol
-├── PANDUAN_ISOLASI_VPS_SIMPELKAN_31.97.187.71.md # Protokol isolasi server 31.97.187.71 (NEW)
-├── PANDUAN_ISOLASI_VPS_MULTI_APP.md             # Protokol isolasi server lama (36.64.200.242)
-├── .agents/rules/vps_deployment_guardrails.md   # AI Workspace Rule untuk pencegahan konflik
-└── .agent/workflows/deploy_simpelkan.md         # Prosedur otomatis deployment ke VPS 31.97.187.71
-```
-

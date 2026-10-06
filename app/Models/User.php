@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\SeksiType;
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -26,7 +26,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
-        'seksi',
+        'pegawai_id',
         'nip',
         'jabatan',
         'no_hp',
@@ -51,41 +51,13 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
-            'seksi' => SeksiType::class,
             'is_active' => 'boolean',
         ];
     }
 
-    /**
-     * @return HasMany<Kegiatan, $this>
-     */
-    public function kegiatan(): HasMany
+    public function pegawai(): BelongsTo
     {
-        return $this->hasMany(Kegiatan::class, 'kasi_id');
-    }
-
-    /**
-     * @return HasMany<Spj, $this>
-     */
-    public function spjDiajukan(): HasMany
-    {
-        return $this->hasMany(Spj::class, 'diajukan_oleh');
-    }
-
-    /**
-     * @return HasMany<Aset, $this>
-     */
-    public function aset(): HasMany
-    {
-        return $this->hasMany(Aset::class, 'penanggung_jawab');
-    }
-
-    /**
-     * @return HasMany<ArsipDigital, $this>
-     */
-    public function arsipDigital(): HasMany
-    {
-        return $this->hasMany(ArsipDigital::class, 'uploaded_by');
+        return $this->belongsTo(Pegawai::class, 'pegawai_id');
     }
 
     /**
@@ -106,31 +78,6 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
-        return $this->role === UserRole::SUPER_ADMIN;
-    }
-
-    public function isStafUmum(): bool
-    {
-        return $this->role === UserRole::STAF_UMUM;
-    }
-
-    public function isStafKeuangan(): bool
-    {
-        return $this->role === UserRole::STAF_KEUANGAN;
-    }
-
-    public function isKasi(): bool
-    {
-        return $this->role === UserRole::KASI;
-    }
-
-    public function isSekmat(): bool
-    {
-        return $this->role === UserRole::SEKMAT;
-    }
-
-    public function isCamat(): bool
-    {
-        return $this->role === UserRole::CAMAT;
+        return $this->role === UserRole::SUPER_ADMIN || $this->hasRole(UserRole::SUPER_ADMIN->value);
     }
 }

@@ -24,7 +24,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
 
-        \App\Models\Spj::observe(\App\Observers\SpjObserver::class);
         \App\Models\Aset::observe(\App\Observers\AsetObserver::class);
 
         // Super Admin has full unrestricted access across policies and gates

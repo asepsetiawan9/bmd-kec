@@ -30,7 +30,7 @@ export default function Login({ status, canResetPassword }) {
                     Masuk ke Akun Anda
                 </h2>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                    Gunakan kredensial resmi pegawai Kecamatan Caringin
+                    Gunakan kredensial resmi pegawai Kecamatan Mekarmukti
                 </p>
             </div>
 
@@ -52,7 +52,7 @@ export default function Login({ status, canResetPassword }) {
                         autoComplete="username"
                         isFocused={true}
                         onChange={(e) => setData('email', e.target.value)}
-                        placeholder="contoh@sikemas.test"
+                        placeholder="contoh@simukti.test"
                     />
                     <InputError message={errors.email} className="mt-1.5 text-xs text-rose-600" />
                 </div>

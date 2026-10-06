@@ -19,12 +19,11 @@ enum KondisiAset: string
         };
     }
 
-    public function color(): string
+    public static function options(): array
     {
-        return match ($this) {
-            self::BAIK => 'green',
-            self::RUSAK_RINGAN => 'amber',
-            self::RUSAK_BERAT => 'red',
-        };
+        return array_reduce(self::cases(), function (array $carry, self $item): array {
+            $carry[$item->value] = $item->label();
+            return $carry;
+        }, []);
     }
 }

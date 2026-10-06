@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exports;
 
+use App\Models\Aset;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -28,20 +29,22 @@ class RekapAsetExport implements FromArray, WithHeadings, ShouldAutoSize, WithSt
     public function headings(): array
     {
         return [
-            ['PEMERINTAH KABUPATEN GARUT - KECAMATAN CARINGIN'],
+            ['PEMERINTAH KABUPATEN GARUT - KECAMATAN MEKARMUKTI'],
             ['REKAPITULASI INVENTARIS BARANG MILIK DAERAH (BMD)'],
             ['Status Per: ' . now()->translatedFormat('d F Y')],
             [],
             [
                 'No',
                 'Kode Barang',
+                'Nomor Register',
                 'Nama Barang',
                 'Merk / Tipe',
+                'Golongan',
                 'Tahun',
                 'Kondisi',
                 'Ruangan / Lokasi',
                 'Nilai Perolehan (Rp)',
-                'Penanggung Jawab',
+                'Pemegang / Penanggung Jawab',
             ],
         ];
     }
@@ -53,27 +56,33 @@ class RekapAsetExport implements FromArray, WithHeadings, ShouldAutoSize, WithSt
         $totalNilai = 0.0;
 
         foreach ($asetList as $index => $aset) {
-            $nilai = (float) $aset->nilai;
+            /** @var Aset $aset */
+            $nilai = (float) $aset->nilai_perolehan;
             $totalNilai += $nilai;
-            $kondisi = $aset->kondisi instanceof \BackedEnum ? $aset->kondisi->value : (string) $aset->kondisi;
+            $kondisi = $aset->kondisi instanceof \BackedEnum ? $aset->kondisi->label() : (string) $aset->kondisi;
+            $golongan = $aset->golongan instanceof \BackedEnum ? $aset->golongan->value : (string) $aset->golongan;
 
             $rows[] = [
                 $index + 1,
                 $aset->kode_barang,
-                $aset->nama,
-                $aset->merk_type ?? '-',
+                $aset->nomor_register,
+                $aset->nama_barang,
+                $aset->merk_tipe ?? '-',
+                "Golongan {$golongan}",
                 $aset->tahun_perolehan,
-                strtoupper(str_replace('_', ' ', $kondisi)),
-                $aset->lokasi,
+                strtoupper($kondisi),
+                $aset->ruangan?->nama_ruangan ?? '-',
                 $nilai,
-                $aset->penanggungJawab?->name ?? '-',
+                $aset->pegawai?->nama ?? '-',
             ];
         }
 
         $rows[] = [
             '',
             '',
+            '',
             'TOTAL NILAI BMD',
+            '',
             '',
             '',
             '',

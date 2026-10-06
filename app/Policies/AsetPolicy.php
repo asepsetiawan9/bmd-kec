@@ -42,8 +42,8 @@ class AsetPolicy
     }
 
     /**
-     * Determine whether the user can delete the asset.
-     * BR-ASET-06: Aset tidak boleh dihapus (hanya bisa diubah kondisi menjadi rusak_berat).
+     * Determine whether the user can delete the asset directly.
+     * Penghapusan hanya via usulan penghapusan resmi berjenjang.
      */
     public function delete(User $user, Aset $aset): bool
     {
@@ -51,18 +51,18 @@ class AsetPolicy
     }
 
     /**
-     * Determine whether the user can generate a QR code for the asset.
+     * Determine whether the user can print asset label QR.
      */
-    public function generateQr(User $user, Aset $aset): bool
+    public function printLabel(User $user): bool
     {
-        return $user->can('aset.generate-qr');
+        return $user->can('aset.label.print');
     }
 
     /**
-     * Determine whether the user can generate KIB/KIR documents.
+     * Determine whether the user can view sensitive documents (BPKB, Sertifikat).
      */
-    public function generateKibKir(User $user, Aset $aset): bool
+    public function viewSensitiveDocuments(User $user): bool
     {
-        return $user->can('aset.generate-kibkir');
+        return $user->can('aset.dokumen.view-sensitive');
     }
 }

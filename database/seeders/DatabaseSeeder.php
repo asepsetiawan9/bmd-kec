@@ -9,16 +9,18 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Seed the application's database for SIMUKTI (BMD Mekarmukti).
      */
     public function run(): void
     {
         $this->call([
             RolePermissionSeeder::class,
-            UserSeeder::class,
-            KegiatanSeeder::class,
-            AsetSeeder::class,
             PengaturanSeeder::class,
+            PegawaiSeeder::class,
+            UserSeeder::class,
+            RuanganSeeder::class,
+            KodeBarangSeeder::class,
+            AsetSeeder::class,
         ]);
     }
 }

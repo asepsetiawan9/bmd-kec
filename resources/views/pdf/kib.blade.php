@@ -115,8 +115,8 @@
 <body>
     <div class="header">
         <h3>Pemerintah {{ $settings['kabupaten'] ?? 'Kabupaten Garut' }}</h3>
-        <h2>Kecamatan {{ $settings['nama_kecamatan'] ?? 'Caringin' }}</h2>
-        <p>{{ $settings['alamat_kantor'] ?? 'Jl. Raya Caringin, Caringin, Garut, Jawa Barat' }}</p>
+        <h2>Kecamatan {{ $settings['nama_kecamatan'] ?? 'Mekarmukti' }}</h2>
+        <p>{{ $settings['alamat_kantor'] ?? 'Jl. Raya Mekarmukti, Mekarmukti, Garut, Jawa Barat' }}</p>
     </div>
 
     <div class="clearfix">
@@ -195,13 +195,13 @@
         <tr>
             <td>
                 Mengetahui,<br>
-                <strong>Camat Caringin</strong>
+                <strong>Camat Mekarmukti</strong>
                 <div class="signature-space"></div>
                 <strong><u>{{ $settings['nama_camat'] ?? 'Drs. H. Asep Mulyana, M.Si.' }}</u></strong><br>
                 NIP. {{ $settings['nip_camat'] ?? '197508121998031002' }}
             </td>
             <td>
-                Caringin, {{ now()->isoFormat('D MMMM Y') }}<br>
+                Mekarmukti, {{ now()->isoFormat('D MMMM Y') }}<br>
                 <strong>Pengurus Barang / Pengelola Aset</strong>
                 <div class="signature-space"></div>
                 <strong><u>{{ $aset->penanggungJawab?->name ?? 'Pengurus Barang' }}</u></strong><br>

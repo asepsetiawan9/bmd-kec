@@ -18,21 +18,21 @@ class BackupDatabaseCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'sikemas:backup-database {--retention=30 : Hari retensi backup (default 30 hari)}';
+    protected $signature = 'simukti:backup-database {--retention=30 : Hari retensi backup (default 30 hari)}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Melakukan backup database SIKEMAS ke folder backup/ dengan retensi otomatis 30 hari';
+    protected $description = 'Melakukan backup database SIMUKTI ke folder backup/ dengan retensi otomatis 30 hari';
 
     /**
      * Execute the console command.
      */
     public function handle(): int
     {
-        $this->info('Memulai proses backup database SIKEMAS...');
+        $this->info('Memulai proses backup database SIMUKTI...');
 
         $backupDir = base_path('backup');
         if (!File::exists($backupDir)) {
@@ -40,7 +40,7 @@ class BackupDatabaseCommand extends Command
         }
 
         $timestamp = Carbon::now()->format('Y-m-d_H-i-s');
-        $fileName = "sikemas_backup_{$timestamp}.sql";
+        $fileName = "simukti_backup_{$timestamp}.sql";
         $filePath = $backupDir . DIRECTORY_SEPARATOR . $fileName;
 
         $dbDriver = config('database.default');
@@ -95,7 +95,7 @@ class BackupDatabaseCommand extends Command
             if ($errorOutput) {
                 $this->error("Detail: {$errorOutput}");
             }
-            Log::error('Backup database SIKEMAS gagal.', ['error' => $errorOutput]);
+            Log::error('Backup database SIMUKTI gagal.', ['error' => $errorOutput]);
             return Command::FAILURE;
         }
 
@@ -126,13 +126,13 @@ class BackupDatabaseCommand extends Command
                     'deleted_old_backups' => $deletedCount,
                 ],
                 'ip_address' => '127.0.0.1',
-                'user_agent' => 'SIKEMAS Automated Backup Command',
+                'user_agent' => 'SIMUKTI Automated Backup Command',
             ]);
         } catch (Throwable $e) {
             Log::warning('Gagal mencatat log aktivitas backup: ' . $e->getMessage());
         }
 
-        Log::info("Backup database SIKEMAS berhasil: {$fileName} ({$formattedSize})");
+        Log::info("Backup database SIMUKTI berhasil: {$fileName} ({$formattedSize})");
         return Command::SUCCESS;
     }
 

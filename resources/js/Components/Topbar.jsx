@@ -26,25 +26,24 @@ export default function Topbar({ setMobileOpen, pageTitle = 'Dashboard' }) {
     const notifMenuRef = useRef(null);
 
     // Format human-readable role badge
-    const getRoleBadge = (role, seksi) => {
+    const getRoleBadge = (role) => {
         switch (role) {
-            case 'staf_umum':
-                return { text: 'Kasubag Umum', color: 'bg-slate-100 text-slate-700 border-slate-300' };
-            case 'staf_keuangan':
-                return { text: 'Staf Keuangan', color: 'bg-blue-100 text-blue-700 border-blue-300' };
-            case 'kasi':
-                const seksiName = seksi ? seksi.charAt(0).toUpperCase() + seksi.slice(1) : '';
-                return { text: `Kasi ${seksiName}`, color: 'bg-emerald-100 text-emerald-700 border-emerald-300' };
-            case 'sekmat':
+            case 'super_admin':
+                return { text: 'Super Administrator', color: 'bg-rose-100 text-rose-700 border-rose-300' };
+            case 'pengurus_barang':
+                return { text: 'Pengurus Barang', color: 'bg-emerald-100 text-emerald-700 border-emerald-300' };
+            case 'penatausaha':
                 return { text: 'Sekretaris Kecamatan', color: 'bg-purple-100 text-purple-700 border-purple-300' };
             case 'camat':
-                return { text: 'Camat Caringin', color: 'bg-amber-100 text-amber-700 border-amber-300' };
+                return { text: 'Camat Mekarmukti', color: 'bg-amber-100 text-amber-700 border-amber-300' };
+            case 'pemegang':
+                return { text: 'Pemegang Barang', color: 'bg-blue-100 text-blue-700 border-blue-300' };
             default:
                 return { text: role || 'Pengguna', color: 'bg-neutral-100 text-neutral-700 border-neutral-300' };
         }
     };
 
-    const roleBadge = getRoleBadge(user?.role, user?.seksi);
+    const roleBadge = getRoleBadge(user?.role);
 
     // Close dropdowns on outside click
     useEffect(() => {

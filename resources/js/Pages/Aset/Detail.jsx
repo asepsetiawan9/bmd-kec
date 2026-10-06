@@ -359,7 +359,7 @@ export default function Detail({ aset, history = [], users = [] }) {
                             </div>
 
                             <p className="text-[11px] text-neutral-600">
-                                Dokumen Kartu Inventaris siap cetak dengan kop resmi Kecamatan Caringin dan kolom verifikasi pejabat berwenang.
+                                Dokumen Kartu Inventaris siap cetak dengan kop resmi Kecamatan Mekarmukti dan kolom verifikasi pejabat berwenang.
                             </p>
 
                             <div className="space-y-2">

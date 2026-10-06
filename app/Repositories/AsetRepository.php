@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Enums\GolonganKib;
 use App\Enums\KondisiAset;
+use App\Enums\StatusAset;
 use App\Models\Aset;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -18,41 +20,33 @@ class AsetRepository
         int $perPage = 15,
         ?string $search = null,
         ?KondisiAset $kondisi = null,
-        ?string $lokasi = null,
+        ?GolonganKib $golongan = null,
+        ?int $ruanganId = null,
         ?int $tahun = null,
-        bool $overdueOnly = false,
-        ?string $jenisDokumen = null
+        ?StatusAset $status = null,
+        bool $overdueOnly = false
     ): LengthAwarePaginator {
         return Aset::query()
-            ->with(['penanggungJawab', 'kibKir'])
+            ->with(['ruangan', 'pemegang', 'refKodeBarang'])
             ->when($search, function ($q, $search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('nama', 'like', "%{$search}%")
                         ->orWhere('kode_barang', 'like', "%{$search}%")
-                        ->orWhere('lokasi', 'like', "%{$search}%")
+                        ->orWhere('nomor_register', 'like', "%{$search}%")
                         ->orWhere('merk_type', 'like', "%{$search}%")
-                        ->orWhere('nomor_register', 'like', "%{$search}%");
+                        ->orWhereHas('ruangan', fn ($r) => $r->where('nama', 'like', "%{$search}%"))
+                        ->orWhereHas('pemegang', fn ($p) => $p->where('nama', 'like', "%{$search}%"));
                 });
             })
             ->when($kondisi, fn ($q) => $q->where('kondisi', $kondisi->value))
-            ->when($lokasi, fn ($q) => $q->where('lokasi', 'like', "%{$lokasi}%"))
+            ->when($golongan, fn ($q) => $q->where('golongan', $golongan->value))
+            ->when($ruanganId, fn ($q) => $q->where('ruangan_id', $ruanganId))
             ->when($tahun, fn ($q) => $q->where('tahun_perolehan', $tahun))
+            ->when($status, fn ($q) => $q->where('status', $status->value))
             ->when($overdueOnly, function ($q) {
                 $q->where(function ($sub) {
                     $sub->whereNull('tanggal_verifikasi_fisik')
                         ->orWhere('tanggal_verifikasi_fisik', '<', now()->subDays(90)->toDateString());
-                });
-            })
-            ->when($jenisDokumen === 'kir', function ($q) {
-                $q->where(function ($sub) {
-                    $sub->whereHas('kibKir', fn ($k) => $k->where('jenis', 'kir'))
-                        ->orWhere('kode_barang', 'like', '06.%');
-                });
-            })
-            ->when($jenisDokumen === 'kib', function ($q) {
-                $q->where(function ($sub) {
-                    $sub->whereHas('kibKir', fn ($k) => $k->where('jenis', '!=', 'kir'))
-                        ->orWhere('kode_barang', 'not like', '06.%');
                 });
             })
             ->latest('id')
@@ -62,12 +56,38 @@ class AsetRepository
 
     public function findById(int $id): ?Aset
     {
-        return Aset::with(['penanggungJawab', 'kibKirs.dibuatOleh', 'kibKir'])->find($id);
+        return Aset::with([
+            'ruangan',
+            'pemegang',
+            'refKodeBarang',
+            'detailTanah',
+            'detailPeralatan',
+            'detailGedung',
+            'detailJalan',
+            'detailLainnya',
+            'detailKdp',
+            'dokumen.uploader',
+            'mutasi.dariRuangan',
+            'mutasi.keRuangan',
+            'mutasi.dariPegawai',
+            'mutasi.kePegawai',
+            'pemeliharaan',
+            'riwayat.user',
+        ])->find($id);
     }
 
-    public function findByKode(string $kodeBarang): ?Aset
+    public function findByToken(string $qrToken): ?Aset
     {
-        return Aset::with(['penanggungJawab', 'kibKir'])->where('kode_barang', $kodeBarang)->first();
+        return Aset::with(['ruangan', 'pemegang', 'refKodeBarang'])
+            ->where('qr_token', $qrToken)
+            ->first();
+    }
+
+    public function findByKodeDanRegister(string $kodeBarang, string $nomorRegister): ?Aset
+    {
+        return Aset::where('kode_barang', $kodeBarang)
+            ->where('nomor_register', $nomorRegister)
+            ->first();
     }
 
     /**
@@ -95,57 +115,26 @@ class AsetRepository
     }
 
     /**
-     * Statistics summary for cards and overview.
-     *
-     * @return array{
-     *     total_aset: int,
-     *     total_nilai: float,
-     *     total_baik: int,
-     *     total_rusak_ringan: int,
-     *     total_rusak_berat: int,
-     *     total_overdue: int
-     * }
+     * Ringkasan statistik inventarisasi BMD.
      */
-    public function getStatistics(): array
+    public function getStatistik(): array
     {
-        $overdueThreshold = now()->subDays(90)->toDateString();
+        $total = Aset::count();
+        $totalNilai = (float) (Aset::sum('nilai_perolehan') ?? 0);
+        $baik = Aset::where('kondisi', KondisiAset::BAIK->value)->count();
+        $rusakRingan = Aset::where('kondisi', KondisiAset::RUSAK_RINGAN->value)->count();
+        $rusakBerat = Aset::where('kondisi', KondisiAset::RUSAK_BERAT->value)->count();
+        $overdue = Aset::whereNull('tanggal_verifikasi_fisik')
+            ->orWhere('tanggal_verifikasi_fisik', '<', now()->subDays(90)->toDateString())
+            ->count();
 
         return [
-            'total_aset' => Aset::count(),
-            'total_nilai' => (float) Aset::sum('nilai'),
-            'total_baik' => Aset::where('kondisi', KondisiAset::BAIK->value)->count(),
-            'total_rusak_ringan' => Aset::where('kondisi', KondisiAset::RUSAK_RINGAN->value)->count(),
-            'total_rusak_berat' => Aset::where('kondisi', KondisiAset::RUSAK_BERAT->value)->count(),
-            'total_overdue' => Aset::where(function ($q) use ($overdueThreshold) {
-                $q->whereNull('tanggal_verifikasi_fisik')
-                    ->orWhere('tanggal_verifikasi_fisik', '<', $overdueThreshold);
-            })->count(),
+            'total' => $total,
+            'total_nilai' => $totalNilai,
+            'baik' => $baik,
+            'rusak_ringan' => $rusakRingan,
+            'rusak_berat' => $rusakBerat,
+            'overdue' => $overdue,
         ];
-    }
-
-    /**
-     * @return list<string>
-     */
-    public function getDistinctLokasi(): array
-    {
-        return Aset::select('lokasi')
-            ->distinct()
-            ->whereNotNull('lokasi')
-            ->orderBy('lokasi')
-            ->pluck('lokasi')
-            ->toArray();
-    }
-
-    /**
-     * @return list<int>
-     */
-    public function getDistinctTahun(): array
-    {
-        return Aset::select('tahun_perolehan')
-            ->distinct()
-            ->whereNotNull('tahun_perolehan')
-            ->orderByDesc('tahun_perolehan')
-            ->pluck('tahun_perolehan')
-            ->toArray();
     }
 }

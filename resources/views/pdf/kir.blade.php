@@ -115,8 +115,8 @@
 <body>
     <div class="header">
         <h3>Pemerintah {{ $settings['kabupaten'] ?? 'Kabupaten Garut' }}</h3>
-        <h2>Kecamatan {{ $settings['nama_kecamatan'] ?? 'Caringin' }}</h2>
-        <p>{{ $settings['alamat_kantor'] ?? 'Jl. Raya Caringin, Caringin, Garut, Jawa Barat' }}</p>
+        <h2>Kecamatan {{ $settings['nama_kecamatan'] ?? 'Mekarmukti' }}</h2>
+        <p>{{ $settings['alamat_kantor'] ?? 'Jl. Raya Mekarmukti, Mekarmukti, Garut, Jawa Barat' }}</p>
     </div>
 
     <div class="clearfix">
@@ -129,7 +129,7 @@
 
         <div class="doc-title" style="text-align: left;">
             <h4>KARTU INVENTARIS RUANGAN (KIR)</h4>
-            <span>Daftar Barang Inventaris Ruang Kerja Kantor Kecamatan Caringin</span>
+            <span>Daftar Barang Inventaris Ruang Kerja Kantor Kecamatan Mekarmukti</span>
         </div>
     </div>
 
@@ -197,7 +197,7 @@
                 NIP. {{ $aset->penanggungJawab?->nip ?? '-' }}
             </td>
             <td>
-                Caringin, {{ now()->isoFormat('D MMMM Y') }}<br>
+                Mekarmukti, {{ now()->isoFormat('D MMMM Y') }}<br>
                 <strong>Pengurus Barang Pembantu</strong>
                 <div class="signature-space"></div>
                 <strong><u>Dra. Hj. Siti Fatimah</u></strong><br>

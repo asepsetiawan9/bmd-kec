@@ -107,7 +107,7 @@ export default function Index({
                             Pusat Laporan & Rekapitulasi Data
                         </h2>
                         <p className="text-xs text-neutral-500 mt-1">
-                            Laporan resmi realisasi kegiatan anggaran dan inventarisasi Barang Milik Daerah (BMD) Kecamatan Caringin
+                            Laporan resmi inventarisasi Barang Milik Daerah (BMD) Kecamatan Mekarmukti
                         </p>
                     </div>
 

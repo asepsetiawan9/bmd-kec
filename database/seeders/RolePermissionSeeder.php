@@ -20,83 +20,73 @@ class RolePermissionSeeder extends Seeder
         // Reset cached roles and permissions
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Permissions map per Section 4
+        // Permissions map per BMD v3 Matriks Bab 7.3
         $permissions = [
-            'spj.create',
-            'spj.view-own',
-            'spj.view-all',
-            'spj.konsolidasi',
-            'spj.ajukan-verifikasi',
-            'spj.verifikasi',
-            'kegiatan.manage',
-            'kegiatan.view',
+            'master.manage',
+            'aset.view',
             'aset.create',
             'aset.update',
-            'aset.view',
-            'aset.generate-qr',
-            'aset.generate-kibkir',
+            'aset.dokumen.view-sensitive',
+            'aset.label.print',
+            'mutasi.manage',
+            'pemeliharaan.manage',
+            'opname.manage',
+            'opname.view',
+            'penghapusan.create',
+            'penghapusan.verify',
+            'penghapusan.approve',
             'laporan.view',
             'laporan.export',
-            'dashboard.eksekutif',
-            'dashboard.operasional',
-            'dashboard.kasi',
+            'user.manage',
+            'pengaturan.manage',
         ];
 
         foreach ($permissions as $permissionName) {
             Permission::firstOrCreate(['name' => $permissionName, 'guard_name' => 'web']);
         }
 
-        // Roles mapping
+        // Roles mapping per Bab 7.3
         $rolesWithPermissions = [
             UserRole::SUPER_ADMIN->value => $permissions,
-            UserRole::STAF_UMUM->value => [
-                'aset.update',
+            UserRole::PENGURUS_BARANG->value => [
+                'master.manage',
                 'aset.view',
-                'aset.generate-qr',
-            ],
-            UserRole::STAF_KEUANGAN->value => [
-                'spj.view-all',
-                'spj.konsolidasi',
-                'spj.ajukan-verifikasi',
-                'kegiatan.manage',
-                'kegiatan.view',
                 'aset.create',
                 'aset.update',
-                'aset.view',
-                'aset.generate-qr',
-                'aset.generate-kibkir',
+                'aset.dokumen.view-sensitive',
+                'aset.label.print',
+                'mutasi.manage',
+                'pemeliharaan.manage',
+                'opname.manage',
+                'opname.view',
+                'penghapusan.create',
                 'laporan.view',
                 'laporan.export',
-                'dashboard.operasional',
             ],
-            UserRole::KASI->value => [
-                'spj.create',
-                'spj.view-own',
-                'dashboard.kasi',
-            ],
-            UserRole::SEKMAT->value => [
-                'spj.view-all',
-                'spj.verifikasi',
-                'kegiatan.view',
+            UserRole::PENATAUSAHA->value => [
                 'aset.view',
+                'aset.dokumen.view-sensitive',
+                'opname.view',
+                'penghapusan.verify',
                 'laporan.view',
                 'laporan.export',
-                'dashboard.eksekutif',
             ],
             UserRole::CAMAT->value => [
-                'kegiatan.view',
-                'spj.view-all',
-                'spj.verifikasi',
                 'aset.view',
+                'aset.dokumen.view-sensitive',
+                'opname.view',
+                'penghapusan.approve',
                 'laporan.view',
                 'laporan.export',
-                'dashboard.eksekutif',
+            ],
+            UserRole::PEMEGANG->value => [
+                'aset.view',
             ],
         ];
 
-        foreach ($rolesWithPermissions as $roleName => $assignedPermissions) {
+        foreach ($rolesWithPermissions as $roleName => $rolePermissions) {
             $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
-            $role->syncPermissions($assignedPermissions);
+            $role->syncPermissions($rolePermissions);
         }
     }
 }

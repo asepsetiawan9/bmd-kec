@@ -119,7 +119,7 @@ export default function Index({
 
     return (
         <AuthenticatedLayout title="Inventarisasi BMD & Aset">
-            <Head title="Aset & BMD - Kecamatan Caringin" />
+            <Head title="Aset & BMD - Kecamatan Mekarmukti" />
 
             <div className="space-y-6">
                 {/* Header section */}

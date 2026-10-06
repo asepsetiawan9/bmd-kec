@@ -469,6 +469,48 @@ Format: Atomic Logging `[Timestamp] - [Fase] - [Apa | Kenapa | Dampak]`
 - **Status**: Deployment ke VPS Baru COMPLETED ✅. Zero Downtime. Zero Conflict.
 - **Blockers**: Tidak ada.
 
+### [2026-10-06 14:15] - 🏛️ OVERHAUL BMD V3: EKSEKUSI GELOMBANG 1 (STEP 0 - STEP 4) COMPLETED
+- **Apa**:
+  1. **Step 0 (PREP)**:
+     - Dibuat git branch baru `refactor/overhaul-bmd-v3`.
+     - Dibuat backup lokal: `.env.backup_v2` dan `database/database.sqlite.bak_v2`.
+  2. **Step 1 (PURGE)**:
+     - Hapus 17+ controller, service, repository, model, policy, observer, request, enums, exception SPJ & RAP v1/v2 (total ~6.000+ baris dead code dibersihkan).
+     - Hapus seluruh folder frontend non-BMD: `resources/js/Pages/Spj`, `Kegiatan`, `Program`, `Belanja`, `Verifikasi`.
+     - Hapus legacy tests modul SPJ.
+     - Bersihkan `routes/web.php` & `routes/auth.php` (hapus register Breeze, route SPJ/Belanja/Kegiatan).
+     - Perbaiki TD-03 & TD-04: Streaming file storage dipindahkan ke `FileController.php` independen dengan whitelist folder.
+  3. **Step 2 (BRAND)**:
+     - Ubah `APP_NAME="SIMUKTI"` dan konfigurasi SQLite di `.env` & `.env.example`.
+     - Rebranding identitas instansi dari Caringin menjadi **Pemerintah Kecamatan Mekarmukti, Kabupaten Garut**.
+     - Perbarui kop dokumen pada seluruh PDF (`kib.blade.php`, `kir.blade.php`, `rekap_aset.blade.php`), Excel export, login, layout, sidebar, topbar, dan dashboard.
+  4. **Step 3 (SCHEMA)**:
+     - Squash migrasi legacy SPJ/V2/aset.
+     - Implementasi 12 migrasi database BMD v3 baru:
+       - `pegawai`, `ref_kode_barang`, `ruangan`, `nomor_urut` (atomic lock counter), `aset`, `aset_detail_tanah/peralatan/gedung/jalan/lainnya/kdp`, `aset_dokumen`, `mutasi_aset`, `pemeliharaan`, `inventarisasi`, `usulan_penghapusan`, `riwayat_aset`.
+     - Update migrasi users (`pegawai_id`, role default `pengurus_barang`).
+     - Buat Seeder lengkap: `RolePermissionSeeder`, `PengaturanSeeder`, `PegawaiSeeder`, `RuanganSeeder`, `KodeBarangSeeder`, `UserSeeder`, `AsetSeeder`.
+  5. **Step 4 (ARCH)**:
+     - Dibuat 12 Enums: `UserRole`, `GolonganKib`, `KondisiAset`, `StatusAset`, `CaraPerolehan`, `SumberDana`, `JenisDokumenAset`, `JenisMutasi`, `JenisPemeliharaan`, `HasilInventarisasi`, `StatusInventarisasi`, `StatusUsulanPenghapusan`, `AksiRiwayatAset`.
+     - Dibuat Models & Relationships lengkap untuk seluruh tabel BMD v3.
+     - Implementasi Clean Architecture (Controller → Service → Repository → Model):
+       - `AsetRepository`, `RuanganRepository`, `PegawaiRepository`, `KodeBarangRepository`.
+       - `NomorRegistrasiGeneratorService` (atomic lock sequential 6-digit).
+       - `NomorBastGeneratorService` (format resmi `{URUT}/BAST-BMD/KEC-MKM/{ROMAWI}/{TAHUN}`).
+       - `RiwayatAsetService`, `AsetService`, `LaporanService`.
+       - `AsetObserver`, `AsetPolicy`.
+     - Unit test `tests/Unit/NomorRegistrasiTest.php` dibuat dan lulus 100%.
+     - Verifikasi gate:
+       - `php artisan migrate:fresh --seed` sukses 100% tanpa error.
+       - `php artisan test` 32 passed (80 assertions) 100% GREEN.
+       - `npm run build` sukses 100% (2.889 modules).
+       - `php artisan route:list` bersih (40 routes).
+- **Kenapa**: Menjalankan instruksi Mr Zeps untuk merombak sistem dari SPJ/RAP menjadi murni Sistem Informasi Manajemen Aset Barang Milik Daerah (BMD) Pemerintah Kecamatan Mekarmukti (SIMUKTI) sesuai cetak biru Gelombang 1.
+- **Dampaknya**: Seluruh residu SPJ musnah, fondasi database dan service BMD v3 telah kokoh, thread-safe counter nomor register dan BAST aktif, dan seluruh gate criteria Gelombang 1 terpenuhi secara sempurna.
+- **Status**: Gelombang 1 (Step 0 s/d Step 4) COMPLETED ✅. Siap masuk Gelombang 2 (CRUD Aset 6 Golongan & Riwayat Aset).
+- **Blockers**: Tidak ada.
+
+
 
 
 

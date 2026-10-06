@@ -17,8 +17,8 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->string('role')->default(\App\Enums\UserRole::KASI->value)->index();
-            $table->string('seksi')->nullable()->index();
+            $table->string('role')->default(\App\Enums\UserRole::PENGURUS_BARANG->value)->index();
+            $table->foreignId('pegawai_id')->nullable()->index();
             $table->string('nip')->nullable();
             $table->string('jabatan')->nullable();
             $table->string('no_hp')->nullable();

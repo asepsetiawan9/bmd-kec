@@ -11,11 +11,11 @@ export default function GuestLayout({ children }) {
                     </div>
                 </Link>
                 <h1 className="mt-3 text-2xl font-black tracking-wider text-neutral-900">
-                    SIMPEL KAN
+                    SIMUKTI
                 </h1>
                 <p className="text-xs font-medium text-neutral-500 max-w-sm mt-0.5">
-                    Sistem Pencetakan Pelaporan Pembelanjaan Kecamatan<br />
-                    Kecamatan Caringin
+                    Sistem Informasi Manajemen Aset Kecamatan Mekarmukti<br />
+                    Pemerintah Kabupaten Garut
                 </p>
             </div>
 
@@ -24,7 +24,7 @@ export default function GuestLayout({ children }) {
             </div>
 
             <div className="mt-6 text-center text-xs text-neutral-400">
-                &copy; 2026 Pemerintah Kecamatan Caringin. Hak Cipta Dilindungi.
+                &copy; 2026 Pemerintah Kecamatan Mekarmukti, Kabupaten Garut. Hak Cipta Dilindungi.
             </div>
         </div>
     );

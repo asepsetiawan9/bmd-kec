@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Enums\AksiRiwayatAset;
 use App\Enums\KondisiAset;
 use App\Enums\NotifikasiTipe;
 use App\Enums\UserRole;
 use App\Models\Aset;
 use App\Models\LogAktivitas;
+use App\Models\RiwayatAset;
 use App\Models\User;
 use App\Services\NotifikasiService;
 use Illuminate\Support\Facades\Auth;
@@ -37,18 +39,30 @@ class AsetObserver
             aksi: 'create_aset',
             tabelTerkait: 'aset',
             recordId: (int) $aset->id,
-            keterangan: "Aset BMD baru didaftarkan: {$aset->nama} ({$aset->kode_barang}) di lokasi {$aset->lokasi}"
+            keterangan: "Aset BMD baru didaftarkan: {$aset->nama} ({$aset->kode_barang}) [Register: {$aset->nomor_register}]"
         );
 
-        // Notifikasi ke Staf Umum sesuai Bagian 10
-        $stafUmumUsers = User::where('role', UserRole::STAF_UMUM->value)->where('is_active', true)->get();
+        // Catat ke RiwayatAset
+        RiwayatAset::create([
+            'aset_id' => $aset->id,
+            'aksi' => AksiRiwayatAset::REGISTRASI,
+            'keterangan' => "Registrasi awal aset BMD: {$aset->nama} ({$aset->kode_barang})",
+            'data_sebelum' => null,
+            'data_sesudah' => $aset->only(['nama', 'kode_barang', 'nomor_register', 'golongan', 'nilai_perolehan', 'kondisi', 'status', 'ruangan_id', 'pemegang_id']),
+            'user_id' => $userId,
+        ]);
+
+        // Notifikasi ke Pengurus Barang & Penatausaha
+        $recipients = User::whereIn('role', [UserRole::PENGURUS_BARANG->value, UserRole::PENATAUSAHA->value])
+            ->where('is_active', true)
+            ->get();
         $notifikasiService = app(NotifikasiService::class);
 
-        foreach ($stafUmumUsers as $staf) {
+        foreach ($recipients as $recipient) {
             $notifikasiService->send(
-                userId: (int) $staf->id,
-                judul: 'Aset Baru',
-                pesan: "Aset baru ditambahkan: {$aset->nama} ({$aset->kode_barang})",
+                userId: (int) $recipient->id,
+                judul: 'Aset Baru Ditambahkan',
+                pesan: "Aset baru didaftarkan: {$aset->nama} ({$aset->kode_barang})",
                 tipe: NotifikasiTipe::INFO,
                 link: "/aset/{$aset->id}"
             );
@@ -60,8 +74,7 @@ class AsetObserver
      */
     public function updating(Aset $aset): void
     {
-        // BR-ASET-05: Setiap update kondisi/lokasi WAJIB mengupdate tanggal_verifikasi_fisik
-        if ($aset->isDirty('kondisi') || $aset->isDirty('lokasi')) {
+        if ($aset->isDirty('kondisi') || $aset->isDirty('ruangan_id')) {
             $aset->tanggal_verifikasi_fisik = now()->toDateString();
         }
     }
@@ -80,9 +93,9 @@ class AsetObserver
             $newVal = $aset->kondisi instanceof \BackedEnum ? $aset->kondisi->value : (string) $aset->kondisi;
             $changes[] = "kondisi diubah dari '{$oldVal}' ke '{$newVal}'";
 
-            // BR-ASET-02: Kondisi rusak_berat otomatis kandidat penghapusan, kirim notifikasi warning
+            // Kondisi rusak_berat memicu peringatan kandidat penghapusan
             if ($newVal === KondisiAset::RUSAK_BERAT->value) {
-                $targetUsers = User::whereIn('role', [UserRole::STAF_KEUANGAN->value, UserRole::SEKMAT->value])
+                $targetUsers = User::whereIn('role', [UserRole::PENATAUSAHA->value, UserRole::CAMAT->value])
                     ->where('is_active', true)
                     ->get();
                 $notifikasiService = app(NotifikasiService::class);
@@ -91,7 +104,7 @@ class AsetObserver
                     $notifikasiService->send(
                         userId: (int) $target->id,
                         judul: 'Peringatan Aset Rusak Berat',
-                        pesan: "Aset '{$aset->nama}' ({$aset->kode_barang}) berstatus Rusak Berat dan masuk kandidat penghapusan.",
+                        pesan: "Aset '{$aset->nama}' ({$aset->kode_barang}) berstatus Rusak Berat dan memenuhi kriteria usulan penghapusan.",
                         tipe: NotifikasiTipe::WARNING,
                         link: "/aset/{$aset->id}"
                     );
@@ -99,28 +112,27 @@ class AsetObserver
             }
         }
 
-        if ($aset->wasChanged('lokasi')) {
-            $oldLokasi = (string) $aset->getOriginal('lokasi');
-            $changes[] = "lokasi dipindahkan dari '{$oldLokasi}' ke '{$aset->lokasi}'";
+        if ($aset->wasChanged('ruangan_id')) {
+            $changes[] = 'lokasi/ruangan aset diperbarui';
         }
 
-        if ($aset->wasChanged('kode_barang')) {
-            $oldKode = (string) $aset->getOriginal('kode_barang');
-            $changes[] = "kode barang direvisi dari '{$oldKode}' ke '{$aset->kode_barang}'";
-        }
-
-        if ($aset->wasChanged('penanggung_jawab')) {
-            $changes[] = 'pergantian penanggung jawab aset';
-        }
-
-        if (! empty($changes)) {
+        if (!empty($changes)) {
             LogAktivitas::catat(
                 userId: $userId,
                 aksi: 'update_aset',
                 tabelTerkait: 'aset',
                 recordId: (int) $aset->id,
-                keterangan: "Pembaruan aset {$aset->kode_barang}: " . implode(', ', $changes)
+                keterangan: "Aset '{$aset->nama}' diperbarui: " . implode(', ', $changes)
             );
+
+            RiwayatAset::create([
+                'aset_id' => $aset->id,
+                'aksi' => AksiRiwayatAset::UBAH_DATA,
+                'keterangan' => 'Pembaruan data aset: ' . implode(', ', $changes),
+                'data_sebelum' => $aset->getOriginal(),
+                'data_sesudah' => $aset->getChanges(),
+                'user_id' => $userId,
+            ]);
         }
     }
 }
