@@ -507,8 +507,75 @@ Format: Atomic Logging `[Timestamp] - [Fase] - [Apa | Kenapa | Dampak]`
        - `php artisan route:list` bersih (40 routes).
 - **Kenapa**: Menjalankan instruksi Mr Zeps untuk merombak sistem dari SPJ/RAP menjadi murni Sistem Informasi Manajemen Aset Barang Milik Daerah (BMD) Pemerintah Kecamatan Mekarmukti (SIMUKTI) sesuai cetak biru Gelombang 1.
 - **Dampaknya**: Seluruh residu SPJ musnah, fondasi database dan service BMD v3 telah kokoh, thread-safe counter nomor register dan BAST aktif, dan seluruh gate criteria Gelombang 1 terpenuhi secara sempurna.
-- **Status**: Gelombang 1 (Step 0 s/d Step 4) COMPLETED ✅. Siap masuk Gelombang 2 (CRUD Aset 6 Golongan & Riwayat Aset).
+- **Status**: Gelombang 1 (Step 0 s/d Step 4) COMPLETED ✅.
 - **Blockers**: Tidak ada.
+
+### [2026-10-06 14:38] - 🏛️ OVERHAUL BMD V3: EKSEKUSI GELOMBANG 2 (STEP 5 - STEP 9) COMPLETED
+- **Apa**:
+  1. **Step 5 (AUTH & SHELL LAYOUT)**:
+     - Dikonfigurasi pembagian hak akses role-based pada navigasi `Sidebar.jsx`:
+       - Menu dinamis: Dashboard, Data Aset BMD (Daftar & Tambah), Master Data (Ruangan, Pegawai, Kode Barang 108 untuk Pengurus Barang & Super Admin), Laporan BMD, dan Notifikasi.
+     - Dibuat komponen atom UI baru:
+       - `resources/js/Components/GolonganBadge.jsx` (Badge KIB A–F dengan warna aksen tematik).
+       - `resources/js/Components/StatCard.jsx` (Kartu ringkasan metrik analitik modern).
+     - Diintegrasikan notifikasi toast feedback sonner pada seluruh aksi sistem.
+  2. **Step 6 (MASTER DATA MANAGEMENT)**:
+     - **Modul Master Ruangan**:
+       - `StoreRuanganRequest.php` & `UpdateRuanganRequest.php`.
+       - `RuanganController.php` (CRUD lengkap dengan proteksi hapus jika masih terkait aset).
+       - `resources/js/Pages/Master/Ruangan/Index.jsx` (Tabel modern + modal Tambah/Edit + status aktif + konfirmasi hapus).
+     - **Modul Master Pegawai**:
+       - `StorePegawaiRequest.php` & `UpdatePegawaiRequest.php`.
+       - `PegawaiController.php` (CRUD lengkap dengan tautan akun pengguna sistem).
+       - `resources/js/Pages/Master/Pegawai/Index.jsx` (Tabel modern + NIP/Jabatan + modal Tambah/Edit + konfirmasi hapus).
+     - **Modul Kodefikasi Barang Permendagri 108**:
+       - `KodeBarangController.php` (Halaman index filter per golongan & endpoint API autocomplete `/api/master/kode-barang`).
+       - `resources/js/Pages/Master/KodeBarang/Index.jsx` (Referensi tabel kodefikasi lengkap + fitur salin kode instan).
+       - `resources/js/Components/KodeBarangSearchSelect.jsx` (Komponen autocomplete debounce untuk form pendaftaran aset).
+  3. **Step 7 (CORE ASET MULTI-GOLONGAN A–F)**:
+     - FormRequest validasi dinamis: `StoreAsetRequest.php` dan `UpdateAsetRequest.php` dengan aturan kondisional per golongan (Tanah, Peralatan, Gedung, Jalan, Lainnya, KDP).
+     - `AsetService.php`:
+       - Otomatisasi pembagian atribut induk dan subdetail tabel (`aset_detail_tanah`, `aset_detail_peralatan`, `aset_detail_gedung`, `aset_detail_jalan`, `aset_detail_lainnya`, `aset_detail_kdp`).
+       - Sinkronisasi relasi subdetail secara atomik di dalam `DB::transaction()`.
+       - Otomatisasi generate nomor registrasi sequential 6 digit bebas race condition.
+       - Otomatisasi pembuatan token QR acak kriptografis (`Str::ulid()`).
+     - `resources/js/Pages/Aset/Form.jsx`:
+       - Form multi-golongan responsif dengan selector tab KIB A–F interaktif.
+       - Field spesifikasi teknis dinamis yang merender atribut sesuai golongan terpilih.
+       - Integrasi pencarian autocomplete Permendagri 108, ruangan, pegawai pemegang, format rupiah, dan preview foto fisik.
+     - `resources/js/Pages/Aset/Index.jsx`:
+       - Table-to-Card responsif, tab filter cepat golongan KIB A–F, filter ruangan, kondisi, dan tahun.
+       - Bulk selection (checkbox) untuk pemilihan multi-aset cetak label massal.
+     - `resources/js/Pages/Aset/Detail.jsx`:
+       - Tampilan detail mewah (*The Stark Touch*) dengan 5 tab interaktif: Spesifikasi & Detail, Galeri Foto Fisik, Dokumen Legalitas, Mutasi & Pemeliharaan, dan Audit Trail.
+  4. **Step 8 (QR ENGINE & LABEL CETAK MASSAL)**:
+     - Standarisasi URL QR mengarah ke endpoint publik `/scan/{token}`.
+     - `LabelCetakController.php`:
+       - Mendukung cetak label individual maupun massal (menerima array ID aset terpilih).
+       - Menjamin file gambar QR PNG telah terbuat di storage sebelum cetak.
+     - `resources/views/print/label_qr_a4.blade.php`:
+       - Layout presisi lembar A4 (3 kolom x 4 baris = 12 stiker per lembar).
+       - Desain stiker resmi: Kop Pemkab Garut & Kecamatan Mekarmukti, QR Code resolusi tinggi, nama barang, kode barang, ruangan, dan nomor register.
+  5. **Step 9 (MEDIA SECURITY & LEGALITAS DOKUMEN)**:
+     - Pemisahan storage terisolasi: Disk `public` untuk foto fisik (`aset_fotos`), Disk `local` terenkripsi/private untuk dokumen hukum (`aset_dokumens`).
+     - `AsetDokumenController.php`:
+       - Upload berkas dengan validasi MIME ketat (PDF, JPG, PNG max 5MB).
+       - Download berkas terproteksi via Policy (`Gate::authorize('viewSensitiveDocuments')`). Staf/pemegang tidak dapat membocorkan surat kepemilikan/sertifikat sensitif.
+       - Hapus dokumen fisik dan database secara sinkron.
+     - `PublicScanController.php` & `resources/js/Pages/Public/AsetScanInfo.jsx`:
+       - Portal publik tanpa autentikasi saat QR stiker discan oleh masyarakat / pihak audit.
+       - Data publik disanitasi ketat (hanya menampilkan data umum, nomor register, kondisi, lokasi; menyembunyikan dokumen dan histori internal).
+  6. **PENGUJIAN & VERIFIKASI GATE GELOMBANG 2**:
+     - `tests/Feature/Bmd/GelombangDuaTest.php` dibuat (9 test scenarios, 44 assertions).
+     - Hasil test suite lengkap: **41 PASSED (124 assertions) 100% GREEN**.
+     - `php artisan migrate:fresh --seed` sukses 100% tanpa error.
+     - `npm run build` sukses 100% (2.896 modules, bundle bersih).
+     - `php artisan route:list` terkonfirmasi 56 routes siap pakai.
+- **Kenapa**: Menjalankan instruksi Mr Zeps untuk mengeksekusi Gelombang 2 sesuai dokumen `roadmap_urutan_pengerjaan.md`.
+- **Dampaknya**: Seluruh shell layout, modul master data (ruangan, pegawai, kode barang), registrasi aset 6 golongan KIB A–F, pencetakan label stiker QR A4 massal, portal publik scan QR, dan proteksi berkas legalitas private telah aktif dan terverifikasi 100%. Gate Criteria Gelombang 2 terpenuhi sempurna.
+- **Status**: Gelombang 2 (Step 5 s/d Step 9) COMPLETED ✅. Siap masuk Gelombang 3 (Mutasi, Pemeliharaan, Sensus/Opname Mobile & Usulan Penghapusan Approval).
+- **Blockers**: Tidak ada.
+
 
 
 

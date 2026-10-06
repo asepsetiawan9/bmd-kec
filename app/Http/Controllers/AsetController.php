@@ -77,6 +77,9 @@ class AsetController extends Controller
     /**
      * Show the form for creating a new asset.
      */
+    /**
+     * Show the form for creating a new asset.
+     */
     public function create(): Response
     {
         Gate::authorize('create', Aset::class);
@@ -95,28 +98,9 @@ class AsetController extends Controller
     /**
      * Store a newly created asset.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(\App\Http\Requests\Aset\StoreAsetRequest $request): RedirectResponse
     {
-        Gate::authorize('create', Aset::class);
-
-        $validated = $request->validate([
-            'nama' => ['required', 'string', 'max:255'],
-            'kode_barang' => ['required', 'string', 'max:50'],
-            'golongan' => ['required', 'string', 'in:A,B,C,D,E,F'],
-            'merk_type' => ['nullable', 'string', 'max:150'],
-            'spesifikasi' => ['nullable', 'string'],
-            'tanggal_perolehan' => ['required', 'date'],
-            'tahun_perolehan' => ['required', 'integer', 'min:1945', 'max:' . (date('Y') + 1)],
-            'cara_perolehan' => ['required', 'string'],
-            'sumber_dana' => ['nullable', 'string'],
-            'nilai_perolehan' => ['required', 'numeric', 'min:0'],
-            'satuan' => ['nullable', 'string', 'max:30'],
-            'kondisi' => ['required', 'string', 'in:baik,rusak_ringan,rusak_berat'],
-            'ruangan_id' => ['nullable', 'exists:ruangan,id'],
-            'pemegang_id' => ['nullable', 'exists:pegawai,id'],
-            'keterangan' => ['nullable', 'string'],
-            'foto' => ['nullable', 'image', 'max:5120'],
-        ]);
+        $validated = $request->validated();
 
         $foto = $request->file('foto');
         unset($validated['foto']);
@@ -149,7 +133,7 @@ class AsetController extends Controller
             'detailJalan',
             'detailLainnya',
             'detailKdp',
-            'dokumen',
+            'dokumen.uploader',
             'mutasi.dariRuangan',
             'mutasi.keRuangan',
             'mutasi.dariPegawai',
@@ -175,7 +159,18 @@ class AsetController extends Controller
     {
         Gate::authorize('update', $aset);
 
-        $aset->loadMissing(['ruangan', 'pemegang', 'refKodeBarang']);
+        $aset->loadMissing([
+            'ruangan',
+            'pemegang',
+            'refKodeBarang',
+            'detailTanah',
+            'detailPeralatan',
+            'detailGedung',
+            'detailJalan',
+            'detailLainnya',
+            'detailKdp',
+        ]);
+
         $pegawaiList = Pegawai::aktif()->orderBy('nama')->get(['id', 'nama', 'nip', 'jabatan']);
         $ruanganList = Ruangan::aktif()->orderBy('nama')->get(['id', 'nama', 'kode']);
 
@@ -191,22 +186,9 @@ class AsetController extends Controller
     /**
      * Update the specified asset.
      */
-    public function update(Request $request, Aset $aset): RedirectResponse
+    public function update(\App\Http\Requests\Aset\UpdateAsetRequest $request, Aset $aset): RedirectResponse
     {
-        Gate::authorize('update', $aset);
-
-        $validated = $request->validate([
-            'nama' => ['sometimes', 'required', 'string', 'max:255'],
-            'merk_type' => ['nullable', 'string', 'max:150'],
-            'spesifikasi' => ['nullable', 'string'],
-            'nilai_perolehan' => ['sometimes', 'required', 'numeric', 'min:0'],
-            'satuan' => ['nullable', 'string', 'max:30'],
-            'kondisi' => ['sometimes', 'required', 'string', 'in:baik,rusak_ringan,rusak_berat'],
-            'ruangan_id' => ['nullable', 'exists:ruangan,id'],
-            'pemegang_id' => ['nullable', 'exists:pegawai,id'],
-            'keterangan' => ['nullable', 'string'],
-            'foto' => ['nullable', 'image', 'max:5120'],
-        ]);
+        $validated = $request->validated();
 
         $foto = $request->file('foto');
         unset($validated['foto']);

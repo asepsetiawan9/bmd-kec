@@ -2,47 +2,52 @@ import React, { useState, useEffect } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import KondisiBadge from '@/Components/KondisiBadge';
+import GolonganBadge from '@/Components/GolonganBadge';
+import StatCard from '@/Components/StatCard';
 import EmptyState from '@/Components/EmptyState';
-import QrDownloadButton from '@/Components/QrDownloadButton';
 import { formatRupiah } from '@/Utils/formatRupiah';
-import { formatDate } from '@/Utils/formatDate';
 import {
-    Package,
-    PlusCircle,
+    Box,
+    Plus,
     Search,
     Filter,
     RotateCcw,
-    AlertTriangle,
-    CheckCircle2,
-    Calendar,
-    MapPin,
-    QrCode,
-    FileSpreadsheet,
-    FileText,
+    Printer,
+    Download,
     Eye,
     Edit3,
-    Clock,
-    AlertCircle
+    Calendar,
+    DoorClosed,
+    Users,
+    CheckSquare,
+    Square,
+    DollarSign,
+    CheckCircle2,
+    AlertTriangle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Index({
     assets,
     statistics = {},
-    distinctLokasi = [],
-    distinctTahun = [],
-    filters = {}
+    ruanganList = [],
+    filters = {},
 }) {
     const { auth } = usePage().props;
     const userRole = auth?.user?.role;
     const permissions = auth?.user?.permissions || auth?.permissions || [];
-    const canCreate = permissions.includes('aset.create') || ['staf_keuangan', 'super_admin'].includes(userRole);
-    const canUpdate = permissions.includes('aset.update') || ['staf_keuangan', 'staf_umum', 'super_admin'].includes(userRole);
+    const canCreate = permissions.includes('aset.create') || ['pengurus_barang', 'super_admin'].includes(userRole);
+    const canUpdate = permissions.includes('aset.update') || ['pengurus_barang', 'super_admin'].includes(userRole);
+    const canPrintLabel = permissions.includes('aset.label.print') || ['pengurus_barang', 'super_admin', 'camat', 'penatausaha'].includes(userRole);
 
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [kondisi, setKondisi] = useState(filters.kondisi || '');
-    const [lokasi, setLokasi] = useState(filters.lokasi || '');
+    const [golongan, setGolongan] = useState(filters.golongan || '');
+    const [ruanganId, setRuanganId] = useState(filters.ruangan_id || '');
     const [tahun, setTahun] = useState(filters.tahun || '');
-    const [overdue, setOverdue] = useState(Boolean(filters.overdue));
+
+    // Bulk selection state
+    const [selectedIds, setSelectedIds] = useState([]);
 
     // Debounced search
     useEffect(() => {
@@ -55,18 +60,15 @@ export default function Index({
         return () => clearTimeout(timeout);
     }, [searchTerm]);
 
-    const currentTab = filters.tab || '';
-
     const applyFilters = (newFilters = {}) => {
         router.get(
             '/aset',
             {
-                tab: currentTab || undefined,
                 search: searchTerm,
-                kondisi,
-                lokasi,
-                tahun,
-                overdue: overdue ? 1 : undefined,
+                kondisi: kondisi || undefined,
+                golongan: golongan || undefined,
+                ruangan_id: ruanganId || undefined,
+                tahun: tahun || undefined,
                 ...newFilters,
             },
             {
@@ -77,212 +79,195 @@ export default function Index({
         );
     };
 
-    const handleTabChange = (newTab) => {
-        applyFilters({ tab: newTab || undefined });
-    };
-
-    const handleKondisiChange = (e) => {
-        const val = e.target.value;
-        setKondisi(val);
-        applyFilters({ kondisi: val });
-    };
-
-    const handleLokasiChange = (e) => {
-        const val = e.target.value;
-        setLokasi(val);
-        applyFilters({ lokasi: val });
-    };
-
-    const handleTahunChange = (e) => {
-        const val = e.target.value;
-        setTahun(val);
-        applyFilters({ tahun: val });
-    };
-
-    const handleOverdueToggle = () => {
-        const nextVal = !overdue;
-        setOverdue(nextVal);
-        applyFilters({ overdue: nextVal ? 1 : undefined });
+    const handleGolonganFilter = (g) => {
+        setGolongan(g);
+        applyFilters({ golongan: g || undefined });
     };
 
     const handleResetFilters = () => {
         setSearchTerm('');
         setKondisi('');
-        setLokasi('');
+        setGolongan('');
+        setRuanganId('');
         setTahun('');
-        setOverdue(false);
-        router.get('/aset', currentTab ? { tab: currentTab } : {}, { preserveState: true, replace: true });
+        router.get('/aset', {}, { replace: true });
     };
 
-    const hasActiveFilters = Boolean(searchTerm || kondisi || lokasi || tahun || overdue);
-    const items = assets?.data || [];
+    // Bulk selection helpers
+    const allIdsOnPage = assets?.data ? assets.data.map((item) => item.id) : [];
+    const isAllSelected = allIdsOnPage.length > 0 && allIdsOnPage.every((id) => selectedIds.includes(id));
+
+    const toggleSelectAll = () => {
+        if (isAllSelected) {
+            setSelectedIds(selectedIds.filter((id) => !allIdsOnPage.includes(id)));
+        } else {
+            const combined = Array.from(new Set([...selectedIds, ...allIdsOnPage]));
+            setSelectedIds(combined);
+        }
+    };
+
+    const toggleSelectOne = (id) => {
+        if (selectedIds.includes(id)) {
+            setSelectedIds(selectedIds.filter((item) => item !== id));
+        } else {
+            setSelectedIds([...selectedIds, id]);
+        }
+    };
+
+    const handleBulkPrintLabel = () => {
+        if (selectedIds.length === 0) {
+            toast.warning('Pilih setidaknya 1 aset untuk dicetak labelnya.');
+            return;
+        }
+        window.open(`/aset/cetak-label?ids=${selectedIds.join(',')}`, '_blank');
+    };
+
+    const golonganTabs = [
+        { key: '', label: 'Semua Golongan' },
+        { key: 'A', label: 'KIB A (Tanah)' },
+        { key: 'B', label: 'KIB B (Peralatan)' },
+        { key: 'C', label: 'KIB C (Gedung)' },
+        { key: 'D', label: 'KIB D (Jalan/Jaringan)' },
+        { key: 'E', label: 'KIB E (Aset Lainnya)' },
+        { key: 'F', label: 'KIB F (KDP)' },
+    ];
 
     return (
-        <AuthenticatedLayout title="Inventarisasi BMD & Aset">
-            <Head title="Aset & BMD - Kecamatan Mekarmukti" />
+        <AuthenticatedLayout title="Daftar Aset BMD">
+            <Head title="Daftar Aset BMD - SIMUKTI Mekarmukti" />
 
             <div className="space-y-6">
-                {/* Header section */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface p-5 rounded-card border border-neutral-200/80 shadow-sm">
+                {/* Stats Bar */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard
+                        title="Total Unit Aset"
+                        value={`${statistics.total || 0} Unit`}
+                        subtitle="Tercatat di sistem SIMUKTI"
+                        icon={Box}
+                        color="emerald"
+                    />
+                    <StatCard
+                        title="Total Nilai Perolehan"
+                        value={formatRupiah(statistics.total_nilai || 0)}
+                        subtitle="Valuasi kekayaan daerah"
+                        icon={DollarSign}
+                        color="blue"
+                    />
+                    <StatCard
+                        title="Kondisi Baik"
+                        value={`${statistics.baik || 0} Unit`}
+                        subtitle="Siap operasional pelayanan"
+                        icon={CheckCircle2}
+                        color="emerald"
+                    />
+                    <StatCard
+                        title="Rusak / Perlu Servis"
+                        value={`${(statistics.rusak_ringan || 0) + (statistics.rusak_berat || 0)} Unit`}
+                        subtitle={`${statistics.rusak_berat || 0} rusak berat`}
+                        icon={AlertTriangle}
+                        color="rose"
+                    />
+                </div>
+
+                {/* Header & Bulk Actions */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-xs">
                     <div>
-                        <div className="flex items-center gap-2">
-                            <span className="p-2 rounded-lg bg-primary/10 text-primary">
-                                <Package className="w-5 h-5" />
-                            </span>
-                            <h2 className="text-xl font-bold text-neutral-900 tracking-tight">
-                                Inventarisasi Barang Milik Daerah (BMD)
-                            </h2>
-                        </div>
-                        <p className="text-xs text-neutral-500 mt-1.5 ml-9">
-                            Database aset tetap, pelabelan QR Code otomatis, pencatatan mutasi fisik, dan kartu inventaris KIB/KIR.
+                        <h2 className="text-lg font-bold text-neutral-900 leading-tight">
+                            Pengelolaan Aset Milik Daerah
+                        </h2>
+                        <p className="text-xs text-neutral-500">
+                            Inventarisasi dan status fisik BMD Kecamatan Mekarmukti
                         </p>
                     </div>
 
-                    {canCreate && (
-                        <Link
-                            href="/aset/create"
-                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-btn text-xs font-semibold hover:bg-primary-dark shadow-sm transition-all duration-150 active:scale-[0.98]"
-                        >
-                            <PlusCircle className="w-4 h-4" />
-                            Pendaftaran Aset Baru
-                        </Link>
-                    )}
-                </div>
-
-                {/* Banner Peringatan BR-ASET-02 jika ada aset rusak berat */}
-                {Number(statistics.total_rusak_berat || 0) > 0 && (
-                    <div className="flex items-start gap-3 p-4 rounded-card bg-amber-50 border border-amber-200 text-amber-900 shadow-sm">
-                        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                        <div className="text-xs">
-                            <strong className="font-semibold block text-amber-800">
-                                Peringatan Inventaris (BR-ASET-02):
-                            </strong>
-                            Terdapat <strong>{statistics.total_rusak_berat} aset</strong> berkondisi <strong>Rusak Berat</strong>. Aset ini otomatis tercatat sebagai kandidat penghapusan barang inventaris daerah.
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {canPrintLabel && selectedIds.length > 0 && (
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setKondisi('rusak_berat');
-                                    applyFilters({ kondisi: 'rusak_berat' });
-                                }}
-                                className="ml-2 font-semibold underline text-amber-800 hover:text-amber-950"
+                                onClick={handleBulkPrintLabel}
+                                className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-neutral-800 hover:bg-neutral-900 text-white rounded-xl text-xs font-semibold shadow-sm transition-all animate-in fade-in"
                             >
-                                Tampilkan Hanya Aset Rusak Berat →
+                                <Printer className="w-4 h-4 text-emerald-400" />
+                                Cetak Label QR ({selectedIds.length})
                             </button>
-                        </div>
-                    </div>
-                )}
+                        )}
 
-                {/* Statistics Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <div className="bg-surface p-4 rounded-card border border-neutral-200/80 shadow-sm">
-                        <span className="text-[11px] font-medium text-neutral-500 block">Total Aset</span>
-                        <div className="mt-1 flex items-baseline gap-1.5">
-                            <span className="text-2xl font-bold text-neutral-900">{statistics.total_aset || 0}</span>
-                            <span className="text-[10px] text-neutral-400">unit</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-surface p-4 rounded-card border border-neutral-200/80 shadow-sm col-span-2 md:col-span-1 lg:col-span-2">
-                        <span className="text-[11px] font-medium text-neutral-500 block">Total Nilai BMD</span>
-                        <div className="mt-1">
-                            <span className="text-lg font-bold text-primary font-mono truncate block">
-                                {formatRupiah(statistics.total_nilai || 0)}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="bg-surface p-4 rounded-card border border-neutral-200/80 shadow-sm">
-                        <span className="text-[11px] font-medium text-neutral-500 flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Kondisi Baik
-                        </span>
-                        <div className="mt-1 flex items-baseline gap-1.5">
-                            <span className="text-xl font-bold text-emerald-600">{statistics.total_baik || 0}</span>
-                            <span className="text-[10px] text-neutral-400">unit</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-surface p-4 rounded-card border border-neutral-200/80 shadow-sm">
-                        <span className="text-[11px] font-medium text-neutral-500 flex items-center gap-1">
-                            <AlertCircle className="w-3.5 h-3.5 text-amber-500" /> Rusak Ringan
-                        </span>
-                        <div className="mt-1 flex items-baseline gap-1.5">
-                            <span className="text-xl font-bold text-amber-600">{statistics.total_rusak_ringan || 0}</span>
-                            <span className="text-[10px] text-neutral-400">unit</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-surface p-4 rounded-card border border-neutral-200/80 shadow-sm">
-                        <span className="text-[11px] font-medium text-neutral-500 flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-rose-500" /> Overdue &gt;90h
-                        </span>
-                        <div className="mt-1 flex items-baseline gap-1.5">
-                            <span className="text-xl font-bold text-rose-600">{statistics.total_overdue || 0}</span>
-                            <span className="text-[10px] text-neutral-400">unit</span>
-                        </div>
+                        {canCreate && (
+                            <Link
+                                href="/aset/create"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Tambah Aset Baru
+                            </Link>
+                        )}
                     </div>
                 </div>
 
-                {/* Tab Filter KIB / KIR (UX-01) */}
-                <div className="flex items-center gap-2 border-b border-neutral-200">
-                    <button
-                        onClick={() => handleTabChange('')}
-                        className={`px-4 py-2.5 text-xs font-bold rounded-t-lg transition-colors border-b-2 inline-flex items-center gap-1.5 ${
-                            !currentTab || currentTab === 'semua'
-                                ? 'border-primary text-primary bg-primary/5'
-                                : 'border-transparent text-neutral-500 hover:text-neutral-900'
-                        }`}
-                    >
-                        <Package className="w-3.5 h-3.5" />
-                        <span>Semua Aset</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-200 text-neutral-700">
-                            {statistics.total_aset || 0}
-                        </span>
-                    </button>
-                    <button
-                        onClick={() => handleTabChange('kib')}
-                        className={`px-4 py-2.5 text-xs font-bold rounded-t-lg transition-colors border-b-2 inline-flex items-center gap-1.5 ${
-                            currentTab === 'kib' || currentTab === 'kib_kir'
-                                ? 'border-primary text-primary bg-primary/5'
-                                : 'border-transparent text-neutral-500 hover:text-neutral-900'
-                        }`}
-                    >
-                        <FileSpreadsheet className="w-3.5 h-3.5" />
-                        <span>Dokumen KIB (Aset Tetap / Peralatan)</span>
-                    </button>
-                    <button
-                        onClick={() => handleTabChange('kir')}
-                        className={`px-4 py-2.5 text-xs font-bold rounded-t-lg transition-colors border-b-2 inline-flex items-center gap-1.5 ${
-                            currentTab === 'kir'
-                                ? 'border-primary text-primary bg-primary/5'
-                                : 'border-transparent text-neutral-500 hover:text-neutral-900'
-                        }`}
-                    >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Dokumen KIR (Inventaris Ruangan)</span>
-                    </button>
+                {/* Golongan Tabs */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {golonganTabs.map((tab) => {
+                        const active = golongan === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => handleGolonganFilter(tab.key)}
+                                className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                                    active
+                                        ? 'bg-emerald-600 text-white shadow-xs'
+                                        : 'bg-white hover:bg-neutral-50 text-neutral-600 border border-neutral-200/80'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {/* Filter and Search Bar */}
-                <div className="bg-surface p-4 rounded-card border border-neutral-200/80 shadow-sm space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-center">
-                        {/* Search input */}
-                        <div className="lg:col-span-4 relative">
-                            <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                {/* Filter & Search Bar */}
+                <div className="bg-white rounded-2xl p-4 border border-neutral-200/80 shadow-xs space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+                        {/* Search Input */}
+                        <div className="lg:col-span-2 relative">
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
                             <input
                                 type="text"
-                                placeholder="Cari nama, kode barang, merk, nomor register..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 text-xs rounded-input border-neutral-300 focus:border-primary focus:ring-primary/20"
+                                placeholder="Cari nama barang, kode, nomor register, pemegang..."
+                                className="w-full pl-9 pr-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                             />
                         </div>
 
-                        {/* Kondisi filter */}
-                        <div className="lg:col-span-2">
+                        {/* Ruangan Filter */}
+                        <div>
+                            <select
+                                value={ruanganId}
+                                onChange={(e) => {
+                                    setRuanganId(e.target.value);
+                                    applyFilters({ ruangan_id: e.target.value || undefined });
+                                }}
+                                className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            >
+                                <option value="">Semua Ruangan</option>
+                                {ruanganList.map((r) => (
+                                    <option key={r.id} value={r.id}>
+                                        {r.nama}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Kondisi Filter */}
+                        <div>
                             <select
                                 value={kondisi}
-                                onChange={handleKondisiChange}
-                                className="w-full py-2 px-3 text-xs rounded-input border-neutral-300 focus:border-primary focus:ring-primary/20 text-neutral-700 font-medium"
+                                onChange={(e) => {
+                                    setKondisi(e.target.value);
+                                    applyFilters({ kondisi: e.target.value || undefined });
+                                }}
+                                className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                             >
                                 <option value="">Semua Kondisi</option>
                                 <option value="baik">Baik</option>
@@ -291,243 +276,225 @@ export default function Index({
                             </select>
                         </div>
 
-                        {/* Lokasi filter */}
-                        <div className="lg:col-span-2">
-                            <select
-                                value={lokasi}
-                                onChange={handleLokasiChange}
-                                className="w-full py-2 px-3 text-xs rounded-input border-neutral-300 focus:border-primary focus:ring-primary/20 text-neutral-700"
-                            >
-                                <option value="">Semua Ruangan/Lokasi</option>
-                                {distinctLokasi.map((loc) => (
-                                    <option key={loc} value={loc}>
-                                        {loc}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Tahun filter */}
-                        <div className="lg:col-span-2">
-                            <select
+                        {/* Reset Filter Button */}
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                placeholder="Tahun"
                                 value={tahun}
-                                onChange={handleTahunChange}
-                                className="w-full py-2 px-3 text-xs rounded-input border-neutral-300 focus:border-primary focus:ring-primary/20 text-neutral-700"
+                                onChange={(e) => {
+                                    setTahun(e.target.value);
+                                    applyFilters({ tahun: e.target.value || undefined });
+                                }}
+                                className="w-24 px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl focus:bg-white font-mono"
+                            />
+                            <button
+                                type="button"
+                                onClick={handleResetFilters}
+                                className="p-2 border border-neutral-200 hover:bg-neutral-50 text-neutral-500 rounded-xl transition-colors"
+                                title="Reset Filter"
                             >
-                                <option value="">Semua Tahun</option>
-                                {distinctTahun.map((yr) => (
-                                    <option key={yr} value={yr}>
-                                        {yr}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Overdue check & Reset */}
-                        <div className="lg:col-span-2 flex items-center justify-between sm:justify-end gap-3">
-                            <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-neutral-700 select-none">
-                                <input
-                                    type="checkbox"
-                                    checked={overdue}
-                                    onChange={handleOverdueToggle}
-                                    className="rounded border-neutral-300 text-rose-600 focus:ring-rose-500 w-3.5 h-3.5"
-                                />
-                                <span className={overdue ? 'font-semibold text-rose-600' : ''}>Overdue</span>
-                            </label>
-
-                            {hasActiveFilters && (
-                                <button
-                                    type="button"
-                                    onClick={handleResetFilters}
-                                    className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 underline"
-                                >
-                                    <RotateCcw className="w-3 h-3" /> Reset
-                                </button>
-                            )}
+                                <RotateCcw className="w-4 h-4" />
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* DataTable */}
-                <div className="bg-surface rounded-card border border-neutral-200/80 shadow-sm overflow-hidden">
+                {/* Table Data Card */}
+                <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-xs overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs">
-                            <thead className="bg-neutral-50 border-b border-neutral-200 text-neutral-600 uppercase tracking-wider font-semibold text-[11px]">
-                                <tr>
-                                    <th className="py-3 px-4">Barang / BMD</th>
-                                    <th className="py-3 px-4">Kode & Register</th>
-                                    <th className="py-3 px-4">Nilai Perolehan</th>
-                                    <th className="py-3 px-4">Kondisi</th>
-                                    <th className="py-3 px-4">Lokasi & Verifikasi</th>
-                                    <th className="py-3 px-4">KIB / KIR</th>
-                                    <th className="py-3 px-4 text-right">Aksi</th>
+                        <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr className="bg-neutral-50 border-b border-neutral-100 text-neutral-500 font-semibold uppercase tracking-wider text-[11px]">
+                                    <th className="px-4 py-3.5 w-10 text-center">
+                                        <button
+                                            type="button"
+                                            onClick={toggleSelectAll}
+                                            className="text-neutral-500 hover:text-neutral-800"
+                                            title="Pilih Semua di Halaman Ini"
+                                        >
+                                            {isAllSelected ? (
+                                                <CheckSquare className="w-4 h-4 text-emerald-600" />
+                                            ) : (
+                                                <Square className="w-4 h-4 text-neutral-300" />
+                                            )}
+                                        </button>
+                                    </th>
+                                    <th className="px-4 py-3.5">Identitas & Nama Barang</th>
+                                    <th className="px-4 py-3.5 text-center">Golongan</th>
+                                    <th className="px-4 py-3.5">Lokasi / Pemegang</th>
+                                    <th className="px-4 py-3.5 text-center">Tahun</th>
+                                    <th className="px-4 py-3.5 text-right">Nilai Perolehan</th>
+                                    <th className="px-4 py-3.5 text-center">Kondisi</th>
+                                    <th className="px-4 py-3.5 text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-100">
-                                {items.length === 0 ? (
+                                {assets.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan="7" className="p-8">
+                                        <td colSpan={8} className="px-4 py-12 text-center text-neutral-400">
                                             <EmptyState
                                                 title="Tidak ada aset ditemukan"
-                                                description={
-                                                    hasActiveFilters
-                                                        ? 'Tidak ada data aset yang cocok dengan filter yang Anda gunakan.'
-                                                        : 'Belum ada aset BMD yang didaftarkan pada sistem.'
-                                                }
-                                                action={
-                                                    hasActiveFilters ? (
-                                                        <button
-                                                            onClick={handleResetFilters}
-                                                            className="text-xs font-semibold text-primary underline"
-                                                        >
-                                                            Reset Filter
-                                                        </button>
-                                                    ) : canCreate ? (
-                                                        <Link
-                                                            href="/aset/create"
-                                                            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white rounded-btn text-xs font-semibold hover:bg-primary-dark"
-                                                        >
-                                                            <PlusCircle className="w-4 h-4" /> Daftarkan Aset Sekarang
-                                                        </Link>
-                                                    ) : null
-                                                }
+                                                description="Sesuaikan filter pencarian atau daftarkan aset baru ke dalam sistem."
                                             />
                                         </td>
                                     </tr>
                                 ) : (
-                                    items.map((aset) => (
-                                        <tr key={aset.id} className="hover:bg-neutral-50/70 transition-colors">
-                                            {/* Nama & Foto */}
-                                            <td className="py-3 px-4">
-                                                <div className="flex items-center gap-3">
-                                                    {aset.foto_url ? (
-                                                        <img
-                                                            src={aset.foto_url}
-                                                            alt={aset.nama}
-                                                            className="w-10 h-10 rounded-lg object-cover border border-neutral-200"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-10 h-10 rounded-lg bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-400">
-                                                            <Package className="w-5 h-5" />
+                                    assets.data.map((item) => {
+                                        const isSelected = selectedIds.includes(item.id);
+                                        return (
+                                            <tr
+                                                key={item.id}
+                                                className={`transition-colors ${
+                                                    isSelected ? 'bg-emerald-50/50 hover:bg-emerald-50' : 'hover:bg-neutral-50/70'
+                                                }`}
+                                            >
+                                                {/* Checkbox */}
+                                                <td className="px-4 py-3.5 text-center">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleSelectOne(item.id)}
+                                                        className="text-neutral-400 hover:text-neutral-800"
+                                                    >
+                                                        {isSelected ? (
+                                                            <CheckSquare className="w-4 h-4 text-emerald-600" />
+                                                        ) : (
+                                                            <Square className="w-4 h-4 text-neutral-300" />
+                                                        )}
+                                                    </button>
+                                                </td>
+
+                                                {/* Nama & Kode */}
+                                                <td className="px-4 py-3.5">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="w-10 h-10 rounded-xl overflow-hidden bg-neutral-100 border border-neutral-200 shrink-0 flex items-center justify-center">
+                                                            {item.foto_path ? (
+                                                                <img
+                                                                    src={`/storage/${item.foto_path}`}
+                                                                    alt={item.nama}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            ) : (
+                                                                <Box className="w-5 h-5 text-neutral-400" />
+                                                            )}
                                                         </div>
-                                                    )}
-                                                    <div>
-                                                        <Link
-                                                            href={`/aset/${aset.id}`}
-                                                            className="font-semibold text-neutral-900 hover:text-primary transition-colors block"
-                                                        >
-                                                            {aset.nama}
-                                                        </Link>
-                                                        <span className="text-[11px] text-neutral-500">
-                                                            {aset.merk_type || 'Tanpa Merk'} • Thn {aset.tahun_perolehan}
-                                                        </span>
+                                                        <div className="space-y-0.5 min-w-0">
+                                                            <Link
+                                                                href={`/aset/${item.id}`}
+                                                                className="font-bold text-neutral-900 hover:text-emerald-700 transition-colors block truncate max-w-sm"
+                                                            >
+                                                                {item.nama}
+                                                            </Link>
+                                                            <div className="flex items-center gap-1.5 font-mono text-[11px] text-neutral-500">
+                                                                <span>{item.kode_barang}</span>
+                                                                <span>&bull;</span>
+                                                                <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 rounded">
+                                                                    REG: {item.nomor_register}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </td>
+                                                </td>
 
-                                            {/* Kode Barang & Register */}
-                                            <td className="py-3 px-4">
-                                                <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-neutral-100 text-neutral-800 border border-neutral-200 block w-max">
-                                                    {aset.kode_barang}
-                                                </span>
-                                                {aset.nomor_register && (
-                                                    <span className="text-[11px] text-neutral-400 mt-0.5 block">
-                                                        Reg: {aset.nomor_register}
-                                                    </span>
-                                                )}
-                                            </td>
+                                                {/* Golongan */}
+                                                <td className="px-4 py-3.5 text-center">
+                                                    <GolonganBadge golongan={item.golongan?.value || item.golongan} />
+                                                </td>
 
-                                            {/* Nilai Aset */}
-                                            <td className="py-3 px-4 font-mono font-semibold text-neutral-900">
-                                                {formatRupiah(aset.nilai)}
-                                            </td>
+                                                {/* Lokasi & Pemegang */}
+                                                <td className="px-4 py-3.5 text-neutral-700">
+                                                    <div className="space-y-0.5">
+                                                        <div className="flex items-center gap-1 text-neutral-800 font-medium truncate">
+                                                            <DoorClosed className="w-3 h-3 text-neutral-400 shrink-0" />
+                                                            <span>{item.ruangan?.nama || '-'}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 text-[11px] text-neutral-500 truncate">
+                                                            <Users className="w-3 h-3 text-neutral-400 shrink-0" />
+                                                            <span>{item.pemegang?.nama || 'Umum'}</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
 
-                                            {/* Kondisi Badge */}
-                                            <td className="py-3 px-4">
-                                                <KondisiBadge kondisi={aset.kondisi} />
-                                            </td>
+                                                {/* Tahun */}
+                                                <td className="px-4 py-3.5 text-center font-mono text-neutral-700">
+                                                    {item.tahun_perolehan}
+                                                </td>
 
-                                            {/* Lokasi & Verifikasi */}
-                                            <td className="py-3 px-4">
-                                                <div className="flex items-center gap-1 font-medium text-neutral-800">
-                                                    <MapPin className="w-3 h-3 text-neutral-400 shrink-0" />
-                                                    <span className="truncate max-w-[150px]">{aset.lokasi}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1 text-[11px] mt-0.5">
-                                                    <Clock className="w-3 h-3 text-neutral-400 shrink-0" />
-                                                    <span className={aset.is_overdue_verifikasi ? 'text-rose-600 font-semibold' : 'text-neutral-500'}>
-                                                        {formatDate(aset.tanggal_verifikasi_fisik)}
-                                                        {aset.is_overdue_verifikasi && ' (!)'}
-                                                    </span>
-                                                </div>
-                                            </td>
+                                                {/* Nilai Perolehan */}
+                                                <td className="px-4 py-3.5 text-right font-mono font-bold text-neutral-900">
+                                                    {formatRupiah(item.nilai_perolehan || 0)}
+                                                </td>
 
-                                            {/* KIB / KIR badge */}
-                                            <td className="py-3 px-4">
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                                                    <FileText className="w-3 h-3" />
-                                                    {aset.kib_kir?.jenis || 'KIB'}
-                                                </span>
-                                            </td>
+                                                {/* Kondisi */}
+                                                <td className="px-4 py-3.5 text-center">
+                                                    <KondisiBadge kondisi={item.kondisi?.value || item.kondisi} />
+                                                </td>
 
-                                            {/* Actions */}
-                                            <td className="py-3 px-4 text-right">
-                                                <div className="inline-flex items-center gap-1.5">
-                                                    <Link
-                                                        href={`/aset/${aset.id}`}
-                                                        className="p-1.5 text-neutral-600 hover:text-primary hover:bg-neutral-100 rounded-btn transition-colors"
-                                                        title="Lihat Detail & Riwayat"
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                    </Link>
-
-                                                    {canUpdate && (
+                                                {/* Aksi */}
+                                                <td className="px-4 py-3.5 text-right">
+                                                    <div className="flex items-center justify-end gap-1">
                                                         <Link
-                                                            href={`/aset/${aset.id}/edit`}
-                                                            className="p-1.5 text-neutral-600 hover:text-amber-600 hover:bg-neutral-100 rounded-btn transition-colors"
-                                                            title="Edit Informasi Aset"
+                                                            href={`/aset/${item.id}`}
+                                                            className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-600 hover:text-emerald-700 transition-colors"
+                                                            title="Lihat Detail Aset"
                                                         >
-                                                            <Edit3 className="w-4 h-4" />
+                                                            <Eye className="w-4 h-4" />
                                                         </Link>
-                                                    )}
-
-                                                    <a
-                                                        href={`/aset/${aset.id}/qr`}
-                                                        className="p-1.5 text-neutral-600 hover:text-emerald-600 hover:bg-neutral-100 rounded-btn transition-colors"
-                                                        title="Unduh Label QR Code"
-                                                    >
-                                                        <QrCode className="w-4 h-4" />
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                                        {canUpdate && (
+                                                            <Link
+                                                                href={`/aset/${item.id}/edit`}
+                                                                className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-600 hover:text-blue-700 transition-colors"
+                                                                title="Edit Spesifikasi Aset"
+                                                            >
+                                                                <Edit3 className="w-4 h-4" />
+                                                            </Link>
+                                                        )}
+                                                        <a
+                                                            href={`/aset/${item.id}/qr`}
+                                                            className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-600 hover:text-purple-700 transition-colors"
+                                                            title="Unduh Berkas QR Code"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                        </a>
+                                                        <a
+                                                            href={`/aset/cetak-label?ids=${item.id}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="p-1.5 hover:bg-neutral-100 rounded-lg text-neutral-600 hover:text-emerald-700 transition-colors"
+                                                            title="Cetak Label Stiker A4"
+                                                        >
+                                                            <Printer className="w-4 h-4" />
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
                     </div>
 
                     {/* Pagination */}
-                    {assets?.links && assets.links.length > 3 && (
-                        <div className="p-4 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-600">
-                            <div>
-                                Menampilkan <strong>{assets.from || 0}</strong> - <strong>{assets.to || 0}</strong> dari <strong>{assets.total || 0}</strong> aset
-                            </div>
-                            <div className="flex items-center gap-1">
+                    {assets.links && assets.links.length > 3 && (
+                        <div className="p-4 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <span className="text-xs text-neutral-500">
+                                Menampilkan {assets.from || 0} - {assets.to || 0} dari {assets.total} unit aset
+                            </span>
+                            <div className="flex gap-1 flex-wrap">
                                 {assets.links.map((link, idx) => (
-                                    <Link
+                                    <button
                                         key={idx}
-                                        href={link.url || '#'}
-                                        preserveState
-                                        preserveScroll
-                                        className={`px-3 py-1.5 rounded-btn text-xs font-semibold transition-colors ${
-                                            link.active
-                                                ? 'bg-primary text-white'
-                                                : link.url
-                                                ? 'bg-white hover:bg-neutral-100 text-neutral-700 border border-neutral-200'
-                                                : 'text-neutral-300 pointer-events-none'
-                                        }`}
+                                        disabled={!link.url || link.active}
+                                        onClick={() => router.get(link.url)}
                                         dangerouslySetInnerHTML={{ __html: link.label }}
+                                        className={`px-3 py-1 text-xs rounded-lg border transition-colors ${
+                                            link.active
+                                                ? 'bg-emerald-600 text-white border-emerald-600 font-bold'
+                                                : link.url
+                                                ? 'bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200'
+                                                : 'bg-neutral-100 text-neutral-400 border-neutral-200 cursor-not-allowed'
+                                        }`}
                                     />
                                 ))}
                             </div>

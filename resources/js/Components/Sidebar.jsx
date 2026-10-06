@@ -9,13 +9,21 @@ import {
     ChevronRight,
     PlusCircle,
     Layers,
+    Database,
+    DoorClosed,
+    Users,
+    BookOpen,
 } from 'lucide-react';
 
 export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }) {
     const { url } = usePage();
     const { auth, pengaturan } = usePage().props;
     const userRole = auth?.user?.role;
+    const permissions = auth?.user?.permissions || auth?.permissions || [];
     const tahunAktif = pengaturan?.tahun_aktif || new Date().getFullYear();
+
+    const canManageMaster = permissions.includes('master.manage') || ['pengurus_barang', 'super_admin'].includes(userRole);
+    const canCreateAset = permissions.includes('aset.create') || ['pengurus_barang', 'super_admin'].includes(userRole);
 
     // Helper to determine if link is active
     const isActive = (path) => {
@@ -26,7 +34,23 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
 
     // Construct role-specific menu items for BMD (SIMUKTI)
     const getMenuItems = () => {
-        const baseItems = [
+        const asetSubItems = [
+            {
+                name: 'Daftar Aset',
+                href: '/aset',
+                icon: Layers,
+            },
+        ];
+
+        if (canCreateAset) {
+            asetSubItems.push({
+                name: 'Tambah Aset',
+                href: '/aset/create',
+                icon: PlusCircle,
+            });
+        }
+
+        const items = [
             {
                 name: 'Dashboard',
                 href: '/dashboard',
@@ -38,19 +62,37 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 href: '/aset',
                 icon: Box,
                 badge: null,
+                subItems: asetSubItems,
+            },
+        ];
+
+        if (canManageMaster) {
+            items.push({
+                name: 'Master Data',
+                href: '/master',
+                icon: Database,
+                badge: null,
                 subItems: [
                     {
-                        name: 'Daftar Aset',
-                        href: '/aset',
-                        icon: Layers,
+                        name: 'Ruangan',
+                        href: '/master/ruangan',
+                        icon: DoorClosed,
                     },
                     {
-                        name: 'Tambah Aset',
-                        href: '/aset/create',
-                        icon: PlusCircle,
+                        name: 'Pegawai',
+                        href: '/master/pegawai',
+                        icon: Users,
+                    },
+                    {
+                        name: 'Kode Barang 108',
+                        href: '/master/kode-barang',
+                        icon: BookOpen,
                     },
                 ],
-            },
+            });
+        }
+
+        items.push(
             {
                 name: 'Laporan BMD',
                 href: '/laporan',
@@ -62,10 +104,10 @@ export default function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobile
                 href: '/notifikasi',
                 icon: Bell,
                 badge: null,
-            },
-        ];
+            }
+        );
 
-        return baseItems;
+        return items;
     };
 
     const menuItems = getMenuItems();

@@ -25,6 +25,10 @@ class AsetObserver
         if ($aset->tanggal_verifikasi_fisik === null) {
             $aset->tanggal_verifikasi_fisik = now()->toDateString();
         }
+
+        if (empty($aset->qr_token)) {
+            $aset->qr_token = (string) \Illuminate\Support\Str::ulid();
+        }
     }
 
     /**

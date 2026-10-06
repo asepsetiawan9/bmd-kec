@@ -29,7 +29,13 @@ pkp-mekarmukti/
 │   │   ├── Controllers/        # Request handling & Inertia responses
 │   │   │   ├── Auth/           # Breeze authentication controllers (Login, Profile, Password)
 │   │   │   ├── DashboardController.php # Dashboard metrik eksekutif BMD Mekarmukti
-│   │   │   ├── AsetController.php      # CRUD Aset, KIB, QR Code on-demand
+│   │   │   ├── AsetController.php      # CRUD Aset multi-golongan A-F, KIB, QR Code
+│   │   │   ├── LabelCetakController.php # Engine cetak stiker label QR A4 (12 per lembar)
+│   │   │   ├── AsetDokumenController.php# Secure storage & legal document management
+│   │   │   ├── PublicScanController.php# Endpoint publik verifikasi fisik /scan/{token}
+│   │   │   ├── RuanganController.php   # CRUD Master Ruangan penempatan aset
+│   │   │   ├── PegawaiController.php   # CRUD Master Pegawai penanggung jawab
+│   │   │   ├── KodeBarangController.php# Master & Autocomplete API Permendagri 108
 │   │   │   ├── FileController.php      # Streaming file storage terproteksi (whitelist)
 │   │   │   ├── LaporanController.php   # Rekapitulasi BMD, PDF & Excel export
 │   │   │   └── NotifikasiController.php
@@ -37,9 +43,14 @@ pkp-mekarmukti/
 │   │   │   ├── CheckUserActive.php       # Inactive user guard
 │   │   │   └── HandleInertiaRequests.php # Shared auth, user role & flash
 │   │   └── Requests/           # Form validation & authorization
-│   │       └── Aset/
-│   │           ├── StoreAsetRequest.php
-│   │           └── UpdateAsetRequest.php
+│   │       ├── Aset/
+│   │       │   ├── StoreAsetRequest.php  # Validasi dinamis Golongan A–F
+│   │       │   └── UpdateAsetRequest.php
+│   │       └── Master/
+│   │           ├── StoreRuanganRequest.php
+│   │           ├── UpdateRuanganRequest.php
+│   │           ├── StorePegawaiRequest.php
+│   │           └── UpdatePegawaiRequest.php
 │   ├── Models/                 # Eloquent models, casts & relations
 │   │   ├── Pegawai.php         # Master pegawai (penanggung jawab / pemegang aset)
 │   │   ├── RefKodeBarang.php   # Permendagri 108 kodefikasi barang
@@ -52,7 +63,7 @@ pkp-mekarmukti/
 │   │   ├── AsetDetailJalan.php # Detail KIB D
 │   │   ├── AsetDetailLainnya.php# Detail KIB E
 │   │   ├── AsetDetailKdp.php   # Detail KIB F
-│   │   ├── AsetDokumen.php     # Dokumen bukti kepemilikan/foto aset
+│   │   ├── AsetDokumen.php     # Dokumen bukti kepemilikan/foto aset (public & private)
 │   │   ├── MutasiAset.php      # Riwayat mutasi lokasi / pemegang / SKPD
 │   │   ├── Pemeliharaan.php    # Catatan servis, riwayat biaya pemeliharaan
 │   │   ├── Inventarisasi.php   # Sensus / stock opname berkala
@@ -96,22 +107,27 @@ pkp-mekarmukti/
 │       └── DatabaseSeeder.php
 ├── resources/
 │   ├── js/
-│   │   ├── Components/         # Atomic UI (Logo, Sidebar, Topbar, Modal, etc.)
+│   │   ├── Components/         # Atomic UI (GolonganBadge, StatCard, KodeBarangSearchSelect, etc.)
 │   │   ├── Layouts/            # AuthenticatedLayout, GuestLayout
 │   │   └── Pages/
 │   │       ├── Auth/           # Login, ForgotPassword, ResetPassword
 │   │       ├── Dashboard/      # Executive Dashboard BMD
-│   │       ├── Aset/           # Daftar Aset & Detail Aset
+│   │       ├── Aset/           # Index (Table-to-Card & Bulk), Form (6 Golongan), Detail (5 Tabs)
+│   │       ├── Master/         # Ruangan/Index, Pegawai/Index, KodeBarang/Index
+│   │       ├── Public/         # AsetScanInfo (Portal Publik Scan QR)
 │   │       ├── Laporan/        # Laporan & Rekapitulasi BMD
 │   │       └── Profile/        # Profil User
 │   └── views/
 │       ├── app.blade.php       # Inertia root layout (SIMUKTI Mekarmukti)
+│       ├── print/
+│       │   └── label_qr_a4.blade.php # Lembar cetak stiker QR label A4 (12 per lembar)
 │       └── pdf/
 │           ├── kib.blade.php   # Kartu Inventaris Barang (KIB A-F)
 │           ├── kir.blade.php   # Kartu Inventaris Ruangan (KIR)
 │           └── rekap_aset.blade.php # Rekapitulasi BMD Mekarmukti
 └── routes/
-    ├── web.php                 # Rute utama SIMUKTI terproteksi Spatie auth
+    ├── web.php                 # 56 Rute utama SIMUKTI terproteksi Spatie auth
     ├── auth.php                # Rute autentikasi Breeze
     └── console.php             # Schedule & CLI command simukti:backup-database
 ```
+
